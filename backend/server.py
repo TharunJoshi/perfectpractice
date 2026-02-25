@@ -1193,7 +1193,15 @@ async def log_activity(session_id: str, activity_data: ActivityCreate, current_u
         raise HTTPException(status_code=404, detail="Session not found")
     
     user_id = str(current_user["_id"])
-    if user_id not in session["participants"]:
+    
+    # Handle backward compatibility
+    participants = session.get("participants", [])
+    if not participants:
+        participants = [session["host_id"]]
+        if session.get("guest_id"):
+            participants.append(session["guest_id"])
+    
+    if user_id not in participants:
         raise HTTPException(status_code=403, detail="Not authorized to log activity for this session")
     
     if session["status"] != "active":
@@ -1227,7 +1235,15 @@ async def get_session_activities(session_id: str, current_user: dict = Depends(g
         raise HTTPException(status_code=404, detail="Session not found")
     
     user_id = str(current_user["_id"])
-    if user_id not in session["participants"]:
+    
+    # Handle backward compatibility
+    participants = session.get("participants", [])
+    if not participants:
+        participants = [session["host_id"]]
+        if session.get("guest_id"):
+            participants.append(session["guest_id"])
+    
+    if user_id not in participants:
         raise HTTPException(status_code=403, detail="Not authorized to view activities for this session")
     
     activities = await db.activities.find({"session_id": session_id}).to_list(100)

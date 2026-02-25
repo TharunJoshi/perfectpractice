@@ -1178,6 +1178,65 @@ async def get_my_sessions(current_user: dict = Depends(get_current_user)):
     return result
 
 
+@api_router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a session (only host can delete)"""
+    try:
+        session = await db.sessions.find_one({"_id": ObjectId(session_id)})
+    except:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Only host can delete the session
+    if str(session["host_id"]) != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Only the host can delete this session")
+    
+    # Delete the session
+    await db.sessions.delete_one({"_id": ObjectId(session_id)})
+    
+    # Also delete related data (optional - could keep for history)
+    # Delete activities
+    await db.activities.delete_many({"session_id": session_id})
+    
+    # Delete media
+    await db.media.delete_many({"session_id": session_id})
+    
+    # Delete comments
+    await db.session_comments.delete_many({"session_id": session_id})
+    
+    return {"message": "Session deleted successfully"}
+            if session.get("guest_id"):
+                participants.append(session["guest_id"])
+        
+        result.append(SessionResponse(
+            id=str(session["_id"]),
+            host_id=session["host_id"],
+            participants=participants,
+            join_code=session.get("join_code", ""),
+            day_number=session["day_number"],
+            duration=session["duration"],
+            focus_area=session["focus_area"],
+            goal=session["goal"],
+            num_players=session.get("num_players", len(participants)),
+            skill_level=session.get("skill_level", "intermediate"),
+            is_solo=session.get("is_solo", len(participants) == 1),
+            status=session["status"],
+            warmup_steps=session["warmup_steps"],
+            practice_steps=session["practice_steps"],
+            cooldown_steps=session["cooldown_steps"],
+            current_step_index=session["current_step_index"],
+            current_phase=session["current_phase"],
+            ai_practice_plan=session.get("ai_practice_plan"),
+            started_at=session.get("started_at"),
+            completed_at=session.get("completed_at"),
+            created_at=session["created_at"]
+        ))
+    
+    return result
+
+
 # ============================================
 # ACTIVITY ROUTES
 # ============================================

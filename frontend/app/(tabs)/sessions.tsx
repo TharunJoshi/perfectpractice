@@ -59,6 +59,8 @@ export default function Sessions() {
 
   const renderSession = ({ item }: any) => {
     const isHost = item.host_id === user?.id;
+    const participants = item.participants || [];
+    const isSolo = item.is_solo || participants.length === 1;
     
     return (
       <TouchableOpacity
@@ -67,12 +69,25 @@ export default function Sessions() {
       >
         <View style={styles.sessionHeader}>
           <View style={styles.sessionInfo}>
-            <Text style={styles.sessionGoal}>{item.goal}</Text>
+            <View style={styles.goalRow}>
+              <Text style={styles.sessionGoal}>{item.goal}</Text>
+              {isSolo && (
+                <View style={styles.soloTag}>
+                  <Ionicons name="person" size={12} color="#10b981" />
+                  <Text style={styles.soloText}>Solo</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.sessionMeta}>
               {item.focus_area} • Day {item.day_number} • {item.duration} min
             </Text>
+            {item.skill_level && (
+              <Text style={styles.skillLevel}>
+                {item.skill_level.charAt(0).toUpperCase() + item.skill_level.slice(1)}
+              </Text>
+            )}
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}> 
             <Ionicons name={getStatusIcon(item.status)} size={16} color={getStatusColor(item.status)} />
             <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
               {item.status}
@@ -83,14 +98,23 @@ export default function Sessions() {
         <View style={styles.sessionFooter}>
           <View style={styles.roleTag}>
             <Ionicons
-              name={isHost ? 'person' : 'people'}
+              name={isHost ? 'star' : 'people'}
               size={14}
               color="#10b981"
             />
-            <Text style={styles.roleText}>{isHost ? 'Host' : 'Guest'}</Text>
+            <Text style={styles.roleText}>
+              {isHost ? 'Host' : 'Participant'} • {participants.length}/{item.num_players || 2} players
+            </Text>
           </View>
           <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
         </View>
+
+        {item.ai_practice_plan && (
+          <View style={styles.aiTag}>
+            <Ionicons name="sparkles" size={12} color="#8b5cf6" />
+            <Text style={styles.aiText}>AI-Generated Plan</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };

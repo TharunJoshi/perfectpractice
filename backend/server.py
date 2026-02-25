@@ -1275,7 +1275,15 @@ async def upload_media(session_id: str, media_data: MediaUpload, current_user: d
         raise HTTPException(status_code=404, detail="Session not found")
     
     user_id = str(current_user["_id"])
-    if user_id not in session["participants"]:
+    
+    # Handle backward compatibility
+    participants = session.get("participants", [])
+    if not participants:
+        participants = [session["host_id"]]
+        if session.get("guest_id"):
+            participants.append(session["guest_id"])
+    
+    if user_id not in participants:
         raise HTTPException(status_code=403, detail="Not authorized to upload media for this session")
     
     if session["status"] not in ["active", "completed"]:
@@ -1315,7 +1323,15 @@ async def get_session_media(session_id: str, current_user: dict = Depends(get_cu
         raise HTTPException(status_code=404, detail="Session not found")
     
     user_id = str(current_user["_id"])
-    if user_id not in session["participants"]:
+    
+    # Handle backward compatibility
+    participants = session.get("participants", [])
+    if not participants:
+        participants = [session["host_id"]]
+        if session.get("guest_id"):
+            participants.append(session["guest_id"])
+    
+    if user_id not in participants:
         raise HTTPException(status_code=403, detail="Not authorized to view media for this session")
     
     media_list = await db.media.find(
@@ -1350,7 +1366,15 @@ async def get_media_full(media_id: str, current_user: dict = Depends(get_current
         raise HTTPException(status_code=404, detail="Session not found")
     
     user_id = str(current_user["_id"])
-    if user_id not in session["participants"]:
+    
+    # Handle backward compatibility
+    participants = session.get("participants", [])
+    if not participants:
+        participants = [session["host_id"]]
+        if session.get("guest_id"):
+            participants.append(session["guest_id"])
+    
+    if user_id not in participants:
         raise HTTPException(status_code=403, detail="Not authorized to view this media")
     
     return {

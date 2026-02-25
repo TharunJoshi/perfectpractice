@@ -1207,12 +1207,9 @@ async def delete_session(session_id: str, current_user: dict = Depends(get_curre
     await db.session_comments.delete_many({"session_id": session_id})
     
     return {"message": "Session deleted successfully"}
-            if session.get("guest_id"):
-                participants.append(session["guest_id"])
-        
-        result.append(SessionResponse(
-            id=str(session["_id"]),
-            host_id=session["host_id"],
+
+
+# ============================================
             participants=participants,
             join_code=session.get("join_code", ""),
             day_number=session["day_number"],

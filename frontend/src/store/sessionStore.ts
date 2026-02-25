@@ -8,23 +8,39 @@ interface Step {
   name: string;
   duration: number;
   description: string;
+  videos?: Array<{
+    title: string;
+    url: string;
+    type: string;
+  }>;
 }
 
 interface Session {
   id: string;
   host_id: string;
-  guest_id: string | null;
+  participants: string[];  // Changed from guest_id to participants
   join_code: string;
   day_number: number;
   duration: number;
   focus_area: string;
   goal: string;
+  num_players: number;
+  skill_level: string;
+  is_solo: boolean;
   status: string;
   warmup_steps: Step[];
   practice_steps: Step[];
   cooldown_steps: Step[];
   current_step_index: number;
   current_phase: string;
+  ai_practice_plan?: {
+    goal: string;
+    focus_points: string[];
+    recommended_drills: string[];
+    key_techniques: string[];
+    areas_to_improve?: string[];
+    personalized_note?: string;
+  };
   started_at: string | null;
   completed_at: string | null;
   created_at: string;

@@ -426,10 +426,14 @@ export default function SessionDetail() {
               <TouchableOpacity
                 style={[styles.button, styles.primaryButton]}
                 onPress={handleStartSession}
-                disabled={loading || !currentSession.guest_id}
+                disabled={loading || participants.length < currentSession.num_players}
               >
                 <Text style={styles.buttonText}>
-                  {loading ? 'Starting...' : currentSession.guest_id ? 'Start Session' : 'Waiting for Guest...'}
+                  {loading 
+                    ? 'Starting...' 
+                    : participants.length < currentSession.num_players
+                    ? `Waiting for ${currentSession.num_players - participants.length} more player(s)...`
+                    : 'Start Session'}
                 </Text>
               </TouchableOpacity>
             )}

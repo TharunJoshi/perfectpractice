@@ -1125,24 +1125,37 @@ async def get_session(session_id: str, current_user: dict = Depends(get_current_
 async def get_my_sessions(current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["_id"])
     
-    # Find all sessions where user is a participant
+    # Find all sessions where user is participant (handle old guest_id format)
     sessions = await db.sessions.find({
-        "participants": user_id
+        "$or": [
+            {"participants": user_id},
+            {"host_id": user_id},
+            {"guest_id": user_id}
+        ]
     }).sort("created_at", -1).to_list(100)
     
-    return [
-        SessionResponse(
+    result = []
+    for session in sessions:
+        # Handle backward compatibility with old sessions
+        participants = session.get("participants", [])
+        if not participants:
+            # Old format with guest_id
+            participants = [session["host_id"]]
+            if session.get("guest_id"):
+                participants.append(session["guest_id"])
+        
+        result.append(SessionResponse(
             id=str(session["_id"]),
             host_id=session["host_id"],
-            participants=session["participants"],
+            participants=participants,
             join_code=session.get("join_code", ""),
             day_number=session["day_number"],
             duration=session["duration"],
             focus_area=session["focus_area"],
             goal=session["goal"],
-            num_players=session.get("num_players", 2),
+            num_players=session.get("num_players", len(participants)),
             skill_level=session.get("skill_level", "intermediate"),
-            is_solo=session.get("is_solo", False),
+            is_solo=session.get("is_solo", len(participants) == 1),
             status=session["status"],
             warmup_steps=session["warmup_steps"],
             practice_steps=session["practice_steps"],
@@ -1153,9 +1166,9 @@ async def get_my_sessions(current_user: dict = Depends(get_current_user)):
             started_at=session.get("started_at"),
             completed_at=session.get("completed_at"),
             created_at=session["created_at"]
-        )
-        for session in sessions
-    ]
+        ))
+    
+    return result
 
 
 # ============================================

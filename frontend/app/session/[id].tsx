@@ -179,6 +179,9 @@ export default function SessionDetail() {
   }
 
   const isHost = currentSession.host_id === user?.id;
+  const isSolo = currentSession.is_solo || currentSession.participants.length === 1;
+  const participants = currentSession.participants || [];
+  
   const currentSteps = 
     currentSession.current_phase === 'warmup' 
       ? currentSession.warmup_steps 
@@ -186,6 +189,7 @@ export default function SessionDetail() {
       ? currentSession.practice_steps
       : currentSession.cooldown_steps;
   const currentStep = currentSteps[currentSession.current_step_index];
+  const stepVideos = currentStep?.videos || [];
 
   const getPhaseColor = (phase: string) => {
     switch (phase) {

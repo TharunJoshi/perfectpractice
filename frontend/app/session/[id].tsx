@@ -324,6 +324,41 @@ export default function SessionDetail() {
                   <Ionicons name="timer" size={16} color="#94a3b8" />
                   <Text style={styles.stepDurationText}>{currentStep.duration} minutes</Text>
                 </View>
+
+                {/* Instructional Videos */}
+                {stepVideos.length > 0 && (
+                  <View style={styles.videosSection}>
+                    <Text style={styles.videosTitle}>
+                      📹 Watch & Learn ({stepVideos.length} videos)
+                    </Text>
+                    {stepVideos.map((video: any, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.videoItem}
+                        onPress={() => {
+                          Alert.alert(
+                            video.title,
+                            `Video URL: ${video.url}\n\nNote: Video will open in browser. Replace placeholder URLs with your actual cricket training videos.`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Open Video',
+                                onPress: () => {
+                                  // Open video in browser or WebView
+                                  // You can use expo-web-browser or react-native-webview
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <Ionicons name="play-circle" size={24} color="#10b981" />
+                        <Text style={styles.videoTitle}>{video.title}</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#64748b" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
 
               <View style={styles.progressBar}>

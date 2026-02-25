@@ -290,14 +290,19 @@ export default function SessionDetail() {
           </View>
         )}
 
-        {/* Join Code (if waiting) */}
-        {currentSession.status === 'waiting' && (
+        {/* Join Code (if waiting and not solo) */}
+        {currentSession.status === 'waiting' && !isSolo && (
           <View style={styles.joinCodeCard}>
             <Ionicons name="key" size={32} color="#10b981" />
             <Text style={styles.joinCodeLabel}>Join Code</Text>
             <Text style={styles.joinCode}>{currentSession.join_code}</Text>
             <Text style={styles.joinCodeHint}>
-              {isHost ? 'Share this code with your partner' : 'Waiting for host to start...'}
+              {isHost 
+                ? `Share with ${currentSession.num_players - participants.length} more player(s)` 
+                : 'Waiting for host to start...'}
+            </Text>
+            <Text style={styles.participantsCount}>
+              {participants.length}/{currentSession.num_players} players joined
             </Text>
           </View>
         )}

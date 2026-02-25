@@ -62,6 +62,33 @@ export default function Sessions() {
     const participants = item.participants || [];
     const isSolo = item.is_solo || participants.length === 1;
     
+    const handleDelete = () => {
+      Alert.alert(
+        'Delete Session',
+        'Are you sure you want to delete this session? This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const token = await AsyncStorage.getItem('token');
+                await axios.delete(
+                  `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/sessions/${item.id}`,
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+                Alert.alert('Success', 'Session deleted successfully');
+                getMySessions(); // Refresh list
+              } catch (error: any) {
+                Alert.alert('Error', error.response?.data?.detail || 'Failed to delete session');
+              }
+            },
+          },
+        ]
+      );
+    };
+    
     return (
       <TouchableOpacity
         style={styles.sessionCard}
@@ -114,6 +141,19 @@ export default function Sessions() {
             <Ionicons name="sparkles" size={12} color="#8b5cf6" />
             <Text style={styles.aiText}>AI-Generated Plan</Text>
           </View>
+        )}
+
+        {/* Delete button - only show for host */}
+        {isHost && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent navigation to detail
+              handleDelete();
+            }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+          </TouchableOpacity>
         )}
       </TouchableOpacity>
     );

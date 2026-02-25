@@ -246,7 +246,49 @@ export default function SessionDetail() {
               <Text style={styles.infoText}>{currentSession.focus_area}</Text>
             </View>
           </View>
+          {isSolo && (
+            <View style={styles.soloIndicator}>
+              <Ionicons name="person" size={16} color="#10b981" />
+              <Text style={styles.soloText}>Solo Practice - {currentSession.skill_level}</Text>
+            </View>
+          )}
+          {!isSolo && (
+            <View style={styles.participantsRow}>
+              <Ionicons name="people" size={16} color="#3b82f6" />
+              <Text style={styles.participantsText}>
+                {participants.length}/{currentSession.num_players} Players
+              </Text>
+            </View>
+          )}
         </View>
+
+        {/* AI Practice Plan (if available) */}
+        {currentSession.ai_practice_plan && currentSession.status === 'waiting' && (
+          <View style={styles.aiPlanCard}>
+            <View style={styles.aiPlanHeader}>
+              <Ionicons name="sparkles" size={24} color="#8b5cf6" />
+              <Text style={styles.aiPlanTitle}>AI-Generated Practice Plan</Text>
+            </View>
+            <Text style={styles.aiPlanGoal}>{currentSession.ai_practice_plan.goal}</Text>
+            
+            <Text style={styles.aiPlanSectionTitle}>Focus Points:</Text>
+            {currentSession.ai_practice_plan.focus_points?.map((point, index) => (
+              <View key={index} style={styles.aiPlanItem}>
+                <Text style={styles.aiPlanBullet}>•</Text>
+                <Text style={styles.aiPlanText}>{point}</Text>
+              </View>
+            ))}
+
+            {currentSession.ai_practice_plan.personalized_note && (
+              <View style={styles.personalizedNote}>
+                <Ionicons name="information-circle" size={16} color="#f59e0b" />
+                <Text style={styles.personalizedNoteText}>
+                  {currentSession.ai_practice_plan.personalized_note}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Join Code (if waiting) */}
         {currentSession.status === 'waiting' && (

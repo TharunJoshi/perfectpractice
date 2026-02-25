@@ -174,33 +174,258 @@ def generate_warmup_steps():
     ]
 
 def generate_practice_steps(focus_area: str, goal: str, duration: int):
-    """Generate practice steps based on focus area and goal"""
+    """Generate practice steps based on focus area and goal with instructional videos"""
     # Subtract warmup (10) and cooldown (10) minutes
     practice_duration = duration - 20
     
     if focus_area.lower() == "batting":
         return [
-            {"name": "Defensive & Timing", "duration": practice_duration // 4, "description": f"Focus on {goal} - soft practice"},
-            {"name": f"{goal.title()} Technique", "duration": practice_duration // 2, "description": f"Main {goal} drills"},
-            {"name": "Match Simulation", "duration": practice_duration // 4, "description": f"Apply {goal} in game scenarios"}
+            {
+                "name": "Grip & Stance Foundation",
+                "duration": practice_duration // 4,
+                "description": f"Master the fundamentals for {goal}",
+                "videos": [
+                    {
+                        "title": "How to Hold the Bat Grip",
+                        "url": "https://www.youtube.com/watch?v=example1",
+                        "type": "youtube"
+                    },
+                    {
+                        "title": "Perfect Batting Stance",
+                        "url": "https://www.youtube.com/watch?v=example2",
+                        "type": "youtube"
+                    },
+                    {
+                        "title": "Head Position & Balance",
+                        "url": "https://www.youtube.com/watch?v=example3",
+                        "type": "youtube"
+                    }
+                ]
+            },
+            {
+                "name": f"{goal.title()} Technique",
+                "duration": practice_duration // 2,
+                "description": f"Practice {goal} with proper form",
+                "videos": [
+                    {
+                        "title": f"How to Play {goal.title()}",
+                        "url": "https://www.youtube.com/watch?v=example4",
+                        "type": "youtube"
+                    },
+                    {
+                        "title": f"{goal.title()} - Common Mistakes",
+                        "url": "https://www.youtube.com/watch?v=example5",
+                        "type": "youtube"
+                    }
+                ]
+            },
+            {
+                "name": "Match Simulation",
+                "duration": practice_duration // 4,
+                "description": f"Apply {goal} in realistic scenarios",
+                "videos": [
+                    {
+                        "title": "Game Situation Practice",
+                        "url": "https://www.youtube.com/watch?v=example6",
+                        "type": "youtube"
+                    }
+                ]
+            }
         ]
     elif focus_area.lower() == "bowling":
         return [
-            {"name": "Line & Length", "duration": practice_duration // 3, "description": f"Focus on {goal}"},
-            {"name": f"{goal.title()} Practice", "duration": practice_duration // 3, "description": f"Main {goal} drills"},
-            {"name": "Target Bowling", "duration": practice_duration // 3, "description": "Accuracy practice"}
+            {
+                "name": "Grip & Run-up",
+                "duration": practice_duration // 3,
+                "description": f"Perfect your bowling basics for {goal}",
+                "videos": [
+                    {
+                        "title": "Bowling Grip Fundamentals",
+                        "url": "https://www.youtube.com/watch?v=example7",
+                        "type": "youtube"
+                    },
+                    {
+                        "title": "Run-up Technique",
+                        "url": "https://www.youtube.com/watch?v=example8",
+                        "type": "youtube"
+                    }
+                ]
+            },
+            {
+                "name": f"{goal.title()} Practice",
+                "duration": practice_duration // 3,
+                "description": f"Master the {goal} delivery",
+                "videos": [
+                    {
+                        "title": f"How to Bowl {goal.title()}",
+                        "url": "https://www.youtube.com/watch?v=example9",
+                        "type": "youtube"
+                    }
+                ]
+            },
+            {
+                "name": "Target Bowling",
+                "duration": practice_duration // 3,
+                "description": "Accuracy and consistency drills",
+                "videos": []
+            }
         ]
     elif focus_area.lower() == "fielding":
         return [
-            {"name": "Ground Fielding", "duration": practice_duration // 3, "description": f"Focus on {goal}"},
-            {"name": "Catching Drills", "duration": practice_duration // 3, "description": f"{goal} practice"},
-            {"name": "Throw & Accuracy", "duration": practice_duration // 3, "description": "Throwing at stumps"}
+            {
+                "name": "Ground Fielding Basics",
+                "duration": practice_duration // 3,
+                "description": f"Focus on {goal} fundamentals",
+                "videos": [
+                    {
+                        "title": "Ground Fielding Technique",
+                        "url": "https://www.youtube.com/watch?v=example10",
+                        "type": "youtube"
+                    }
+                ]
+            },
+            {
+                "name": "Catching Drills",
+                "duration": practice_duration // 3,
+                "description": f"{goal} practice with variations",
+                "videos": [
+                    {
+                        "title": "Safe Catching Technique",
+                        "url": "https://www.youtube.com/watch?v=example11",
+                        "type": "youtube"
+                    }
+                ]
+            },
+            {
+                "name": "Throw & Accuracy",
+                "duration": practice_duration // 3,
+                "description": "Throwing at stumps with precision",
+                "videos": []
+            }
         ]
     else:
         return [
-            {"name": "Basic Drills", "duration": practice_duration // 2, "description": f"Focus on {goal}"},
-            {"name": "Advanced Practice", "duration": practice_duration // 2, "description": f"Apply {goal}"}
+            {
+                "name": "Basic Drills",
+                "duration": practice_duration // 2,
+                "description": f"Focus on {goal}",
+                "videos": []
+            },
+            {
+                "name": "Advanced Practice",
+                "duration": practice_duration // 2,
+                "description": f"Apply {goal} techniques",
+                "videos": []
+            }
         ]
+
+def generate_ai_practice_plan(focus_area: str, skill_level: str, previous_weaknesses: List[str] = None):
+    """Generate AI-powered practice plan based on focus area, skill level, and weaknesses"""
+    # Rule-based template for now - will evolve to AI-based
+    
+    plans = {
+        "batting": {
+            "beginner": {
+                "goal": "Build fundamental batting technique",
+                "focus_points": ["Grip", "Stance", "Head position", "Straight bat shots"],
+                "recommended_drills": [
+                    "Shadow batting - 10 minutes",
+                    "Straight drive practice - 15 minutes",
+                    "Defense technique - 15 minutes"
+                ]
+            },
+            "intermediate": {
+                "goal": "Develop shot variety and timing",
+                "focus_points": ["Cover drive", "Pull shot", "Footwork", "Shot selection"],
+                "recommended_drills": [
+                    "Cover drive - 15 minutes",
+                    "Pull shot - 10 minutes",
+                    "Footwork drills - 10 minutes",
+                    "Match simulation - 10 minutes"
+                ]
+            },
+            "advanced": {
+                "goal": "Master advanced techniques and consistency",
+                "focus_points": ["Late cuts", "Sweep shots", "Power hitting", "Spin handling"],
+                "recommended_drills": [
+                    "Advanced shot repertoire - 20 minutes",
+                    "Spin bowling practice - 10 minutes",
+                    "Pressure situations - 10 minutes"
+                ]
+            }
+        },
+        "bowling": {
+            "beginner": {
+                "goal": "Build bowling fundamentals",
+                "focus_points": ["Grip", "Run-up", "Line & length", "Arm action"],
+                "recommended_drills": [
+                    "Run-up practice - 10 minutes",
+                    "Line & length - 20 minutes",
+                    "Yorker practice - 10 minutes"
+                ]
+            },
+            "intermediate": {
+                "goal": "Develop bowling variations",
+                "focus_points": ["Swing", "Slower balls", "Yorkers", "Bouncers"],
+                "recommended_drills": [
+                    "Swing bowling - 15 minutes",
+                    "Yorker & bouncer - 15 minutes",
+                    "Match scenarios - 10 minutes"
+                ]
+            },
+            "advanced": {
+                "goal": "Master variations and strategy",
+                "focus_points": ["Reverse swing", "Leg cutters", "Field placements", "Mind games"],
+                "recommended_drills": [
+                    "Advanced variations - 20 minutes",
+                    "Death bowling - 10 minutes",
+                    "Strategic bowling - 10 minutes"
+                ]
+            }
+        },
+        "fielding": {
+            "beginner": {
+                "goal": "Build fielding fundamentals",
+                "focus_points": ["Ground fielding", "Basic catching", "Throwing technique"],
+                "recommended_drills": [
+                    "Ground fielding - 15 minutes",
+                    "Catching practice - 15 minutes",
+                    "Throwing accuracy - 10 minutes"
+                ]
+            },
+            "intermediate": {
+                "goal": "Improve agility and catching",
+                "focus_points": ["Diving", "High catches", "Quick release", "Agility"],
+                "recommended_drills": [
+                    "Diving drills - 10 minutes",
+                    "High catches - 15 minutes",
+                    "Quick release - 15 minutes"
+                ]
+            },
+            "advanced": {
+                "goal": "Master match-winning fielding",
+                "focus_points": ["Boundary fielding", "Direct hits", "Pressure catches", "Positioning"],
+                "recommended_drills": [
+                    "Boundary fielding - 15 minutes",
+                    "Direct hit practice - 15 minutes",
+                    "Match pressure scenarios - 10 minutes"
+                ]
+            }
+        }
+    }
+    
+    plan = plans.get(focus_area.lower(), {}).get(skill_level.lower(), {
+        "goal": f"Improve {focus_area} skills",
+        "focus_points": ["Technique", "Consistency", "Match awareness"],
+        "recommended_drills": ["Practice drills - 40 minutes"]
+    })
+    
+    # Add weakness-based adjustments if available
+    if previous_weaknesses:
+        plan["areas_to_improve"] = previous_weaknesses
+        plan["personalized_note"] = f"Based on your previous sessions, focus extra on: {', '.join(previous_weaknesses)}"
+    
+    return plan
 
 def generate_cooldown_steps():
     """Generate cooldown steps for 10 minutes"""

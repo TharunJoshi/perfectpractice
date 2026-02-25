@@ -345,4 +345,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  deleteButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ef444420',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
 });

@@ -3,18 +3,25 @@ Advanced Features API Routes for PerfectPractice
 Includes: Analytics, Templates, Goals, Teams, Achievements, etc.
 """
 from fastapi import APIRouter, HTTPException, Depends
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime, timedelta
 from typing import List
 import os
 from collections import defaultdict
 
-# Import models from models.py
-from models import *
-
-# Import existing helper functions (we'll need get_current_user)
+# We'll import these from server.py context
+# For now, create a router that will be included
 advanced_router = APIRouter(prefix="/api")
+
+
+# Helper function - will be injected from server.py
+def get_db_and_user():
+    """This will be replaced with actual dependency injection"""
+    pass
+
+
+# Import models - using dict for now since models.py has BaseModel classes
+# In production, these would be properly imported
 
 
 # ============================================

@@ -29,17 +29,14 @@ export default function Home() {
   const [duration, setDuration] = useState('60');
   const [focusArea, setFocusArea] = useState('batting');
   const [goal, setGoal] = useState('');
+  const [numPlayers, setNumPlayers] = useState(1);  // Default to solo
+  const [skillLevel, setSkillLevel] = useState('intermediate');
   
   // Join session form
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleCreateSession = async () => {
-    if (!goal.trim()) {
-      Alert.alert('Error', 'Please enter a practice goal');
-      return;
-    }
-
     const durationNum = parseInt(duration);
     if (durationNum < 30) {
       Alert.alert('Error', 'Duration must be at least 30 minutes');
@@ -52,20 +49,29 @@ export default function Home() {
         day_number: parseInt(dayNumber),
         duration: durationNum,
         focus_area: focusArea,
-        goal: goal.trim(),
+        goal: goal.trim() || null,  // Optional - AI will generate if empty
+        num_players: numPlayers,
+        skill_level: skillLevel,
       });
       
       setShowCreateModal(false);
-      Alert.alert(
-        'Session Created!',
-        `Share this join code with your partner: ${session.join_code}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.push(`/session/${session.id}`),
-          },
-        ]
-      );
+      
+      // Different messages for solo vs multi-player
+      if (session.is_solo) {
+        Alert.alert(
+          '🏏 Solo Practice Started!',
+          session.ai_practice_plan 
+            ? `AI has generated a personalized ${skillLevel} ${focusArea} plan for you!\n\nGoal: ${session.goal}`
+            : 'Your session has started. Begin with warm-up!',
+          [{ text: 'Start Practice', onPress: () => router.push(`/session/${session.id}`) }]
+        );
+      } else {
+        Alert.alert(
+          'Session Created!',
+          `Share this join code with your ${numPlayers - 1} partner(s): ${session.join_code}`,
+          [{ text: 'OK', onPress: () => router.push(`/session/${session.id}`) }]
+        );
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -84,10 +90,7 @@ export default function Home() {
       const session = await joinSession(joinCode.trim());
       setShowJoinModal(false);
       Alert.alert('Joined Successfully!', 'You have joined the session', [
-        {
-          text: 'OK',
-          onPress: () => router.push(`/session/${session.id}`),
-        },
+        { text: 'OK', onPress: () => router.push(`/session/${session.id}`) },
       ]);
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -111,15 +114,37 @@ export default function Home() {
 
         <View style={styles.cardContainer}>
           <TouchableOpacity
-            style={styles.card}
-            onPress={() => setShowCreateModal(true)}
+            style={[styles.card, styles.soloCard]}
+            onPress={() => {
+              setNumPlayers(1);
+              setShowCreateModal(true);
+            }}
           >
             <View style={styles.cardIcon}>
-              <Ionicons name="add-circle" size={48} color="#10b981" />
+              <Ionicons name="person" size={48} color="#10b981" />
             </View>
-            <Text style={styles.cardTitle}>Create Session</Text>
+            <Text style={styles.cardTitle}>Solo Practice</Text>
             <Text style={styles.cardDescription}>
-              Start a new practice session and invite your partner
+              Practice alone with AI-guided training
+            </Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Starts Immediately</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => {
+              setNumPlayers(2);
+              setShowCreateModal(true);
+            }}
+          >
+            <View style={styles.cardIcon}>
+              <Ionicons name="people" size={48} color="#3b82f6" />
+            </View>
+            <Text style={styles.cardTitle}>Team Practice</Text>
+            <Text style={styles.cardDescription}>
+              Create session for 2-10 players
             </Text>
           </TouchableOpacity>
 
@@ -128,32 +153,28 @@ export default function Home() {
             onPress={() => setShowJoinModal(true)}
           >
             <View style={styles.cardIcon}>
-              <Ionicons name="enter" size={48} color="#3b82f6" />
+              <Ionicons name="enter" size={48} color="#8b5cf6" />
             </View>
             <Text style={styles.cardTitle}>Join Session</Text>
             <Text style={styles.cardDescription}>
-              Enter a join code to join an existing session
+              Enter code to join existing session
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>How It Works</Text>
+          <Text style={styles.infoTitle}>✨ New Features</Text>
           <View style={styles.infoCard}>
-            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-            <Text style={styles.infoText}>10-minute mandatory warm-up</Text>
+            <Ionicons name="sparkles" size={24} color="#10b981" />
+            <Text style={styles.infoText}>AI generates personalized practice plans</Text>
           </View>
           <View style={styles.infoCard}>
-            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-            <Text style={styles.infoText}>Structured practice drills</Text>
+            <Ionicons name="play-circle" size={24} color="#10b981" />
+            <Text style={styles.infoText}>Instructional videos for every step</Text>
           </View>
           <View style={styles.infoCard}>
-            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-            <Text style={styles.infoText}>10-minute mandatory cool-down</Text>
-          </View>
-          <View style={styles.infoCard}>
-            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-            <Text style={styles.infoText}>AI-powered shot analysis</Text>
+            <Ionicons name="trophy" size={24} color="#10b981" />
+            <Text style={styles.infoText}>Skill level-based training paths</Text>
           </View>
         </View>
       </ScrollView>
@@ -171,10 +192,93 @@ export default function Home() {
             contentContainerStyle={styles.modalContent}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Practice Session</Text>
+              <Text style={styles.modalTitle}>
+                {numPlayers === 1 ? 'Solo Practice' : 'Create Session'}
+              </Text>
               <TouchableOpacity onPress={() => setShowCreateModal(false)}>
                 <Ionicons name="close" size={28} color="#94a3b8" />
               </TouchableOpacity>
+            </View>
+
+            {numPlayers > 1 && (
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Number of Players</Text>
+                <View style={styles.playerSelector}>
+                  {[1, 2, 3, 4, 5].map((num) => (
+                    <TouchableOpacity
+                      key={num}
+                      style={[
+                        styles.playerButton,
+                        numPlayers === num && styles.playerButtonActive,
+                      ]}
+                      onPress={() => setNumPlayers(num)}
+                    >
+                      <Text
+                        style={[
+                          styles.playerButtonText,
+                          numPlayers === num && styles.playerButtonTextActive,
+                        ]}
+                      >
+                        {num}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Skill Level</Text>
+              <View style={styles.segmentControl}>
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    skillLevel === 'beginner' && styles.segmentActive,
+                  ]}
+                  onPress={() => setSkillLevel('beginner')}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      skillLevel === 'beginner' && styles.segmentTextActive,
+                    ]}
+                  >
+                    Beginner
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    skillLevel === 'intermediate' && styles.segmentActive,
+                  ]}
+                  onPress={() => setSkillLevel('intermediate')}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      skillLevel === 'intermediate' && styles.segmentTextActive,
+                    ]}
+                  >
+                    Intermediate
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    skillLevel === 'advanced' && styles.segmentActive,
+                  ]}
+                  onPress={() => setSkillLevel('advanced')}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      skillLevel === 'advanced' && styles.segmentTextActive,
+                    ]}
+                  >
+                    Advanced
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.formGroup}>
@@ -255,14 +359,19 @@ export default function Home() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Goal / Technique</Text>
+              <Text style={styles.label}>
+                Goal / Technique <Text style={styles.optional}>(Optional)</Text>
+              </Text>
               <TextInput
                 style={styles.input}
                 value={goal}
                 onChangeText={setGoal}
-                placeholder="e.g., cover drive, yorker"
+                placeholder="Leave blank for AI-generated plan"
                 placeholderTextColor="#64748b"
               />
+              <Text style={styles.hint}>
+                💡 Leave empty and AI will create a personalized {skillLevel} plan for you!
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -271,7 +380,7 @@ export default function Home() {
               disabled={loading}
             >
               <Text style={styles.modalButtonText}>
-                {loading ? 'Creating...' : 'Create Session'}
+                {loading ? 'Creating...' : numPlayers === 1 ? 'Start Solo Practice' : 'Create Session'}
               </Text>
             </TouchableOpacity>
           </KeyboardAwareScrollView>
@@ -369,6 +478,10 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
     alignItems: 'center',
   },
+  soloCard: {
+    borderColor: '#10b981',
+    borderWidth: 2,
+  },
   cardIcon: {
     marginBottom: 16,
   },
@@ -382,6 +495,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94a3b8',
     textAlign: 'center',
+  },
+  badge: {
+    backgroundColor: '#10b98120',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  badgeText: {
+    color: '#10b981',
+    fontSize: 12,
+    fontWeight: '600',
   },
   infoSection: {
     padding: 24,
@@ -441,6 +566,11 @@ const styles = StyleSheet.create({
     color: '#e2e8f0',
     marginBottom: 8,
   },
+  optional: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '400',
+  },
   input: {
     backgroundColor: '#0f172a',
     borderRadius: 12,
@@ -449,6 +579,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#334155',
+  },
+  hint: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  playerSelector: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  playerButton: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  playerButtonActive: {
+    backgroundColor: '#10b981',
+    borderColor: '#10b981',
+  },
+  playerButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  playerButtonTextActive: {
+    color: '#fff',
   },
   segmentControl: {
     flexDirection: 'row',

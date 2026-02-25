@@ -1092,23 +1092,30 @@ async def get_session(session_id: str, current_user: dict = Depends(get_current_
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
+    # Handle backward compatibility
+    participants = session.get("participants", [])
+    if not participants:
+        participants = [session["host_id"]]
+        if session.get("guest_id"):
+            participants.append(session["guest_id"])
+    
     # Check if user is participant
     user_id = str(current_user["_id"])
-    if user_id not in session["participants"]:
+    if user_id not in participants:
         raise HTTPException(status_code=403, detail="Not authorized to view this session")
     
     return SessionResponse(
         id=str(session["_id"]),
         host_id=session["host_id"],
-        participants=session["participants"],
-        join_code=session["join_code"],
+        participants=participants,
+        join_code=session.get("join_code", ""),
         day_number=session["day_number"],
         duration=session["duration"],
         focus_area=session["focus_area"],
         goal=session["goal"],
-        num_players=session["num_players"],
-        skill_level=session["skill_level"],
-        is_solo=session["is_solo"],
+        num_players=session.get("num_players", len(participants)),
+        skill_level=session.get("skill_level", "intermediate"),
+        is_solo=session.get("is_solo", len(participants) == 1),
         status=session["status"],
         warmup_steps=session["warmup_steps"],
         practice_steps=session["practice_steps"],
@@ -1116,8 +1123,8 @@ async def get_session(session_id: str, current_user: dict = Depends(get_current_
         current_step_index=session["current_step_index"],
         current_phase=session["current_phase"],
         ai_practice_plan=session.get("ai_practice_plan"),
-        started_at=session["started_at"],
-        completed_at=session["completed_at"],
+        started_at=session.get("started_at"),
+        completed_at=session.get("completed_at"),
         created_at=session["created_at"]
     )
 

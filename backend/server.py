@@ -73,7 +73,9 @@ class SessionCreate(BaseModel):
     day_number: int
     duration: int  # in minutes
     focus_area: str  # batting, bowling, fielding
-    goal: str  # e.g., "cover drive"
+    goal: Optional[str] = None  # e.g., "cover drive" - optional, can be AI-generated
+    num_players: int = 2  # 1 for solo, 2+ for multi-player
+    skill_level: Optional[str] = "intermediate"  # beginner, intermediate, advanced
 
 class SessionJoin(BaseModel):
     join_code: str

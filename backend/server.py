@@ -83,18 +83,22 @@ class SessionJoin(BaseModel):
 class SessionResponse(BaseModel):
     id: str
     host_id: str
-    guest_id: Optional[str] = None
+    participants: List[str]  # Changed from guest_id to support multiple players
     join_code: str
     day_number: int
     duration: int
     focus_area: str
     goal: str
+    num_players: int
+    skill_level: str
+    is_solo: bool
     status: str  # waiting, active, completed
     warmup_steps: List[dict]
     practice_steps: List[dict]
     cooldown_steps: List[dict]
     current_step_index: int
     current_phase: str  # warmup, practice, cooldown
+    ai_practice_plan: Optional[dict] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     created_at: datetime

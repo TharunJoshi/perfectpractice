@@ -1491,10 +1491,18 @@ async def get_instructional_videos(focus_area: str, current_user: dict = Depends
 
 
 # ============================================
-# INCLUDE ROUTER & MIDDLEWARE
+# INCLUDE ROUTERS & MIDDLEWARE
 # ============================================
 
 app.include_router(api_router)
+
+# Include advanced features router
+try:
+    from advanced_routes import advanced_router, get_current_user as adv_get_current_user
+    app.include_router(advanced_router)
+    logger.info("✅ Advanced features routes loaded successfully")
+except Exception as e:
+    logger.warning(f"⚠️  Advanced routes not loaded: {e}")
 
 app.add_middleware(
     CORSMiddleware,

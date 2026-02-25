@@ -6,12 +6,15 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSessionStore } from '../../src/store/sessionStore';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/authStore';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Sessions() {
   const router = useRouter();

@@ -730,6 +730,14 @@ async def register(user_data: UserRegister):
         "email": user_data.email,
         "password": hashed_password,
         "name": user_data.name,
+        "profile_picture": None,
+        "social_provider": None,
+        "social_provider_id": None,
+        "onboarding_completed": False,
+        "height": None,
+        "weight": None,
+        "experience_level": None,
+        "why_here": None,
         "created_at": datetime.utcnow()
     }
     
@@ -742,6 +750,8 @@ async def register(user_data: UserRegister):
         id=user_id,
         email=user_data.email,
         name=user_data.name,
+        profile_picture=None,
+        onboarding_completed=False,
         created_at=user_doc["created_at"]
     )
     
@@ -764,6 +774,12 @@ async def login(credentials: UserLogin):
         id=user_id,
         email=user["email"],
         name=user["name"],
+        profile_picture=user.get("profile_picture"),
+        onboarding_completed=user.get("onboarding_completed", False),
+        height=user.get("height"),
+        weight=user.get("weight"),
+        experience_level=user.get("experience_level"),
+        why_here=user.get("why_here"),
         created_at=user["created_at"]
     )
     
@@ -772,6 +788,94 @@ async def login(credentials: UserLogin):
         token_type="bearer",
         user=user_response
     )
+
+
+@api_router.post("/auth/social", response_model=TokenResponse)
+async def social_auth(auth_data: SocialAuthLogin):
+    """Social authentication - Google, Facebook, Apple, Twitter"""
+    # Check if user exists with this social provider
+    user = await db.users.find_one({
+        "social_provider": auth_data.provider,
+        "social_provider_id": auth_data.provider_id
+    })
+    
+    if not user:
+        # Check if email already exists
+        existing_email = await db.users.find_one({"email": auth_data.email})
+        if existing_email:
+            # Link social account to existing user
+            await db.users.update_one(
+                {"email": auth_data.email},
+                {"$set": {
+                    "social_provider": auth_data.provider,
+                    "social_provider_id": auth_data.provider_id,
+                    "profile_picture": auth_data.profile_picture or existing_email.get("profile_picture")
+                }}
+            )
+            user = await db.users.find_one({"email": auth_data.email})
+        else:
+            # Create new user with social auth
+            user_doc = {
+                "email": auth_data.email,
+                "name": auth_data.name,
+                "password": None,  # No password for social auth
+                "social_provider": auth_data.provider,
+                "social_provider_id": auth_data.provider_id,
+                "profile_picture": auth_data.profile_picture,
+                "onboarding_completed": False,
+                "height": None,
+                "weight": None,
+                "experience_level": None,
+                "why_here": None,
+                "created_at": datetime.utcnow()
+            }
+            result = await db.users.insert_one(user_doc)
+            user = await db.users.find_one({"_id": result.inserted_id})
+    
+    user_id = str(user["_id"])
+    access_token = create_access_token(data={"sub": user_id})
+    
+    user_response = UserResponse(
+        id=user_id,
+        email=user["email"],
+        name=user["name"],
+        profile_picture=user.get("profile_picture"),
+        onboarding_completed=user.get("onboarding_completed", False),
+        height=user.get("height"),
+        weight=user.get("weight"),
+        experience_level=user.get("experience_level"),
+        why_here=user.get("why_here"),
+        created_at=user["created_at"]
+    )
+    
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_response
+    )
+
+
+@api_router.post("/auth/onboarding")
+async def complete_onboarding(
+    onboarding_data: OnboardingData,
+    current_user: dict = Depends(get_current_user)
+):
+    """Complete user onboarding with profile data"""
+    await db.users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {
+            "height": onboarding_data.height,
+            "weight": onboarding_data.weight,
+            "experience_level": onboarding_data.experience_level,
+            "why_here": onboarding_data.why_here,
+            "onboarding_completed": True
+        }}
+    )
+    
+    return {
+        "message": "Onboarding completed successfully",
+        "onboarding_completed": True
+    }
 
 
 # ============================================

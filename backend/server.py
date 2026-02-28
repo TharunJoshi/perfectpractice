@@ -58,10 +58,29 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class SocialAuthLogin(BaseModel):
+    provider: str  # google, facebook, twitter, apple
+    provider_id: str
+    email: EmailStr
+    name: str
+    profile_picture: Optional[str] = None
+
+class OnboardingData(BaseModel):
+    height: float  # in cm
+    weight: float  # in kg
+    experience_level: str  # beginner, intermediate, advanced
+    why_here: str  # "practice_beginner" or "learn_more_skills"
+
 class UserResponse(BaseModel):
     id: str
     email: str
     name: str
+    profile_picture: Optional[str] = None
+    onboarding_completed: bool
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    experience_level: Optional[str] = None
+    why_here: Optional[str] = None
     created_at: datetime
 
 class TokenResponse(BaseModel):

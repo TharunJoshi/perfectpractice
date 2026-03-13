@@ -201,6 +201,27 @@ export default function Home() {
             </View>
           </View>
         </View>
+
+        {/* ICC Guidelines Link */}
+        <TouchableOpacity
+          style={styles.iccCard}
+          onPress={() => router.push('/cricket-rules')}
+        >
+          <View style={styles.iccCardContent}>
+            <View style={styles.iccIconCircle}>
+              <Ionicons name="book" size={24} color="#fff" />
+            </View>
+            <View style={styles.iccTextContainer}>
+              <Text style={styles.iccTitle}>ICC Guidelines 2025</Text>
+              <Text style={styles.iccDescription}>
+                Official rules, techniques & safety protocols
+              </Text>
+            </View>
+          </View>
+          <View style={styles.iccBadge}>
+            <Text style={styles.iccBadgeText}>NEW</Text>
+          </View>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Configure Session Modal */}
@@ -677,5 +698,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  // ICC Card styles
+  iccCard: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  iccCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    flex: 1,
+  },
+  iccIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#10b981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iccTextContainer: {
+    flex: 1,
+  },
+  iccTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  iccDescription: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  iccBadge: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  iccBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

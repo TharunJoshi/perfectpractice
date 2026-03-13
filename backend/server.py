@@ -158,6 +158,39 @@ class InstructionalVideoResponse(BaseModel):
     url: str
     video_type: str
     focus_area: str
+
+# ============================================
+# REELS MODELS
+# ============================================
+
+class ReelUpload(BaseModel):
+    video_uri: str
+    trim_start: float  # seconds
+    trim_end: float  # seconds
+    category: str  # batting, bowling, fielding, workouts, coach_tips
+    level: str  # local, domestic, international
+    focus_area: str
+    skill_level: str
+    is_public: bool = False
+    description: Optional[str] = None
+
+class ReelResponse(BaseModel):
+    id: str
+    video_url: str
+    thumbnail_url: Optional[str] = None
+    user_id: str
+    user_name: str
+    user_avatar: Optional[str] = None
+    category: str
+    level: str
+    focus_area: str
+    skill_level: str
+    description: Optional[str] = None
+    likes: int = 0
+    comments: int = 0
+    is_public: bool = True
+    created_at: datetime
+    is_liked: Optional[bool] = None
     technique: str
     description: Optional[str] = None
     created_at: datetime
@@ -1642,6 +1675,148 @@ async def get_instructional_videos(focus_area: str, current_user: dict = Depends
         )
         for video in videos
     ]
+
+
+# ============================================
+# REELS ENDPOINTS
+# ============================================
+
+@api_router.post("/reels/upload")
+async def upload_reel(reel_data: ReelUpload, current_user: dict = Depends(get_current_user)):
+    """Upload a trimmed video clip as a reel"""
+    reel_doc = {
+        "video_url": reel_data.video_uri,
+        "trim_start": reel_data.trim_start,
+        "trim_end": reel_data.trim_end,
+        "user_id": str(current_user["_id"]),
+        "user_name": current_user["name"],
+        "user_avatar": current_user.get("profile_picture"),
+        "category": reel_data.category,
+        "level": reel_data.level,
+        "focus_area": reel_data.focus_area,
+        "skill_level": reel_data.skill_level,
+        "description": reel_data.description,
+        "is_public": reel_data.is_public,
+        "likes": 0,
+        "comments": 0,
+        "liked_by": [],
+        "created_at": datetime.utcnow()
+    }
+    
+    result = await db.reels.insert_one(reel_doc)
+    
+    return {
+        "id": str(result.inserted_id),
+        "message": "Reel uploaded successfully",
+        "is_public": reel_data.is_public
+    }
+
+@api_router.get("/reels")
+async def get_reels(
+    category: Optional[str] = None,
+    level: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 20,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Get public reels with optional filtering"""
+    # Get current user if authenticated
+    current_user_id = None
+    if credentials:
+        try:
+            payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+            current_user_id = payload.get("sub")
+        except:
+            pass
+    
+    # Build query
+    query = {"is_public": True}
+    if category and category != "all":
+        query["category"] = category
+    if level:
+        query["level"] = level
+    
+    # Fetch reels
+    reels = await db.reels.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Format response
+    result = []
+    for reel in reels:
+        is_liked = current_user_id in reel.get("liked_by", []) if current_user_id else False
+        result.append({
+            "id": str(reel["_id"]),
+            "video_url": reel["video_url"],
+            "thumbnail_url": reel.get("thumbnail_url"),
+            "user_id": reel["user_id"],
+            "user_name": reel["user_name"],
+            "user_avatar": reel.get("user_avatar"),
+            "category": reel["category"],
+            "level": reel["level"],
+            "description": reel.get("description"),
+            "likes": reel.get("likes", 0),
+            "comments": reel.get("comments", 0),
+            "is_liked": is_liked,
+            "created_at": reel["created_at"].isoformat()
+        })
+    
+    return result
+
+@api_router.post("/reels/{reel_id}/like")
+async def like_reel(reel_id: str, current_user: dict = Depends(get_current_user)):
+    """Like or unlike a reel"""
+    user_id = str(current_user["_id"])
+    
+    # Find the reel
+    reel = await db.reels.find_one({"_id": ObjectId(reel_id)})
+    if not reel:
+        raise HTTPException(status_code=404, detail="Reel not found")
+    
+    liked_by = reel.get("liked_by", [])
+    
+    if user_id in liked_by:
+        # Unlike
+        await db.reels.update_one(
+            {"_id": ObjectId(reel_id)},
+            {
+                "$pull": {"liked_by": user_id},
+                "$inc": {"likes": -1}
+            }
+        )
+        return {"liked": False}
+    else:
+        # Like
+        await db.reels.update_one(
+            {"_id": ObjectId(reel_id)},
+            {
+                "$addToSet": {"liked_by": user_id},
+                "$inc": {"likes": 1}
+            }
+        )
+        return {"liked": True}
+
+@api_router.get("/reels/my")
+async def get_my_reels(current_user: dict = Depends(get_current_user)):
+    """Get current user's uploaded reels"""
+    user_id = str(current_user["_id"])
+    
+    reels = await db.reels.find({"user_id": user_id}).sort("created_at", -1).to_list(100)
+    
+    result = []
+    for reel in reels:
+        result.append({
+            "id": str(reel["_id"]),
+            "video_url": reel["video_url"],
+            "thumbnail_url": reel.get("thumbnail_url"),
+            "category": reel["category"],
+            "level": reel["level"],
+            "description": reel.get("description"),
+            "likes": reel.get("likes", 0),
+            "comments": reel.get("comments", 0),
+            "is_public": reel.get("is_public", True),
+            "created_at": reel["created_at"].isoformat()
+        })
+    
+    return result
 
 
 # ============================================

@@ -63,7 +63,7 @@ export default function Home() {
     
     // Navigate to camera setup with session params
     router.push({
-      pathname: '/camera-setup',
+      pathname: '/practice-camera',
       params: {
         practiceType,
         numPlayers: practiceType === 'solo' ? 1 : numPlayers,

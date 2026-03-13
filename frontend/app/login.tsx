@@ -10,16 +10,15 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../src/store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import * as Facebook from 'expo-auth-session/providers/facebook';
 
-WebBrowser.maybeCompleteAuthSession();
+// Demo Mode Flag - Set to false when you have real OAuth credentials
+const DEMO_MODE = true;
 
 export default function Login() {
   const router = useRouter();
@@ -29,98 +28,73 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  
+  // Demo mode states
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [demoProvider, setDemoProvider] = useState<string>('');
+  const [demoName, setDemoName] = useState('');
+  const [demoEmail, setDemoEmail] = useState('');
 
-  // Google Auth
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: 'YOUR_GOOGLE_WEB_CLIENT_ID',
-    iosClientId: 'YOUR_GOOGLE_IOS_CLIENT_ID',
-    androidClientId: 'YOUR_GOOGLE_ANDROID_CLIENT_ID',
-  });
+  // Generate mock user data based on provider
+  const getMockUserData = (provider: string, name: string, userEmail: string) => {
+    const timestamp = Date.now();
+    return {
+      id: `${provider}_${timestamp}`,
+      email: userEmail || `demo.user.${timestamp}@${provider}.com`,
+      name: name || `Demo ${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
+      picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Demo User')}&background=random&size=200`,
+    };
+  };
 
-  // Facebook Auth
-  const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
-    clientId: 'YOUR_FACEBOOK_APP_ID',
-  });
-
-  // Handle Google Response
-  React.useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      handleGoogleAuth(googleResponse.authentication?.accessToken);
+  // Handle Demo Social Login
+  const handleDemoSocialLogin = async () => {
+    if (!demoName.trim()) {
+      Alert.alert('Error', 'Please enter your name');
+      return;
     }
-  }, [googleResponse]);
-
-  // Handle Facebook Response
-  React.useEffect(() => {
-    if (fbResponse?.type === 'success') {
-      handleFacebookAuth(fbResponse.authentication?.accessToken);
+    if (!demoEmail.trim() || !demoEmail.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email');
+      return;
     }
-  }, [fbResponse]);
 
-  const handleGoogleAuth = async (accessToken: string | undefined) => {
-    if (!accessToken) return;
-    
     try {
-      setSocialLoading('google');
-      const userInfoResponse = await fetch(
-        'https://www.googleapis.com/userinfo/v2/me',
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      const userInfo = await userInfoResponse.json();
+      setSocialLoading(demoProvider);
+      setShowDemoModal(false);
       
-      await socialLogin('google', {
-        id: userInfo.id,
-        email: userInfo.email,
-        name: userInfo.name,
-        picture: userInfo.picture,
-      });
+      const mockUser = getMockUserData(demoProvider, demoName, demoEmail);
       
-      router.replace('/(tabs)/home');
+      // Simulate network delay for realism
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await socialLogin(demoProvider, mockUser);
+      
+      // Check if onboarding is completed
+      const user = useAuthStore.getState().user;
+      if (user && !user.onboarding_completed) {
+        router.replace('/welcome');
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } catch (error: any) {
-      Alert.alert('Error', 'Google sign-in failed');
+      Alert.alert('Error', error.message || `${demoProvider} sign-in failed`);
     } finally {
       setSocialLoading(null);
+      setDemoName('');
+      setDemoEmail('');
     }
   };
 
-  const handleFacebookAuth = async (accessToken: string | undefined) => {
-    if (!accessToken) return;
-    
-    try {
-      setSocialLoading('facebook');
-      const userInfoResponse = await fetch(
-        `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`
-      );
-      const userInfo = await userInfoResponse.json();
-      
-      await socialLogin('facebook', {
-        id: userInfo.id,
-        email: userInfo.email,
-        name: userInfo.name,
-        picture: userInfo.picture?.data?.url,
-      });
-      
-      router.replace('/(tabs)/home');
-    } catch (error: any) {
-      Alert.alert('Error', 'Facebook sign-in failed');
-    } finally {
-      setSocialLoading(null);
-    }
-  };
-
-  const handleTwitterAuth = async () => {
-    try {
-      setSocialLoading('twitter');
-      // Twitter/X OAuth would require server-side implementation
-      // For now, show a message that it's coming soon
+  // Handle Social Button Press
+  const handleSocialPress = (provider: string) => {
+    if (DEMO_MODE) {
+      setDemoProvider(provider);
+      setShowDemoModal(true);
+    } else {
+      // Real OAuth flow would go here
       Alert.alert(
-        'Coming Soon', 
-        'Twitter/X login will be available soon. Please use Google or Facebook for now.',
-        [{ text: 'OK' }]
+        'OAuth Not Configured',
+        `Please configure ${provider} OAuth credentials in the app settings.`
       );
-    } catch (error: any) {
-      Alert.alert('Error', 'Twitter sign-in failed');
-    } finally {
-      setSocialLoading(null);
     }
   };
 
@@ -133,11 +107,36 @@ export default function Login() {
     try {
       setLoading(true);
       await login(email, password);
-      router.replace('/(tabs)/home');
+      
+      // Check if onboarding is completed
+      const user = useAuthStore.getState().user;
+      if (user && !user.onboarding_completed) {
+        router.replace('/welcome');
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getProviderColor = (provider: string) => {
+    switch (provider) {
+      case 'google': return '#EA4335';
+      case 'facebook': return '#1877F2';
+      case 'twitter': return '#1DA1F2';
+      default: return '#10b981';
+    }
+  };
+
+  const getProviderName = (provider: string) => {
+    switch (provider) {
+      case 'google': return 'Google';
+      case 'facebook': return 'Meta';
+      case 'twitter': return 'Twitter';
+      default: return provider;
     }
   };
 
@@ -150,6 +149,7 @@ export default function Login() {
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
             <View style={styles.header}>
@@ -158,13 +158,21 @@ export default function Login() {
               <Text style={styles.subtitle}>Your Cricket Coaching Journey</Text>
             </View>
 
+            {/* Demo Mode Banner */}
+            {DEMO_MODE && (
+              <View style={styles.demoBanner}>
+                <Ionicons name="information-circle" size={16} color="#f59e0b" />
+                <Text style={styles.demoBannerText}>Demo Mode - Social login simulated</Text>
+              </View>
+            )}
+
             {/* Social Login Buttons */}
             <View style={styles.socialContainer}>
               <Text style={styles.socialTitle}>Continue with</Text>
               
               <TouchableOpacity
                 style={[styles.socialButton, styles.googleButton]}
-                onPress={() => googlePromptAsync()}
+                onPress={() => handleSocialPress('google')}
                 disabled={socialLoading !== null}
               >
                 {socialLoading === 'google' ? (
@@ -179,7 +187,7 @@ export default function Login() {
 
               <TouchableOpacity
                 style={[styles.socialButton, styles.facebookButton]}
-                onPress={() => fbPromptAsync()}
+                onPress={() => handleSocialPress('facebook')}
                 disabled={socialLoading !== null}
               >
                 {socialLoading === 'facebook' ? (
@@ -194,7 +202,7 @@ export default function Login() {
 
               <TouchableOpacity
                 style={[styles.socialButton, styles.twitterButton]}
-                onPress={handleTwitterAuth}
+                onPress={() => handleSocialPress('twitter')}
                 disabled={socialLoading !== null}
               >
                 {socialLoading === 'twitter' ? (
@@ -263,6 +271,78 @@ export default function Login() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Demo Social Login Modal */}
+      <Modal
+        visible={showDemoModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDemoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={[styles.modalHeader, { backgroundColor: getProviderColor(demoProvider) }]}>
+              <FontAwesome 
+                name={demoProvider === 'facebook' ? 'facebook' : demoProvider as any} 
+                size={32} 
+                color="#fff" 
+              />
+              <Text style={styles.modalTitle}>
+                Sign in with {getProviderName(demoProvider)}
+              </Text>
+            </View>
+            
+            <View style={styles.modalBody}>
+              <Text style={styles.modalSubtitle}>
+                Demo Mode: Enter your details to simulate {getProviderName(demoProvider)} login
+              </Text>
+              
+              <View style={styles.modalInputContainer}>
+                <Ionicons name="person-outline" size={20} color="#64748b" />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Your Name"
+                  placeholderTextColor="#64748b"
+                  value={demoName}
+                  onChangeText={setDemoName}
+                  autoCapitalize="words"
+                />
+              </View>
+
+              <View style={styles.modalInputContainer}>
+                <Ionicons name="mail-outline" size={20} color="#64748b" />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Your Email"
+                  placeholderTextColor="#64748b"
+                  value={demoEmail}
+                  onChangeText={setDemoEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: getProviderColor(demoProvider) }]}
+                onPress={handleDemoSocialLogin}
+              >
+                <Text style={styles.modalButtonText}>Continue</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setShowDemoModal(false);
+                  setDemoName('');
+                  setDemoEmail('');
+                }}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -285,7 +365,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   title: {
     fontSize: 32,
@@ -298,8 +378,23 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginTop: 8,
   },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 20,
+    gap: 8,
+  },
+  demoBannerText: {
+    color: '#f59e0b',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   socialContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   socialTitle: {
     fontSize: 14,
@@ -333,7 +428,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 20,
   },
   dividerLine: {
     flex: 1,
@@ -387,5 +482,78 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: '#10b981',
     fontWeight: '600',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 400,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  modalBody: {
+    padding: 24,
+  },
+  modalSubtitle: {
+    color: '#94a3b8',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  modalInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  modalInput: {
+    flex: 1,
+    height: 52,
+    color: '#fff',
+    fontSize: 16,
+  },
+  modalButton: {
+    borderRadius: 12,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalCancelButton: {
+    marginTop: 12,
+    padding: 12,
+  },
+  modalCancelText: {
+    color: '#64748b',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

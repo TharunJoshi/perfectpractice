@@ -473,8 +473,8 @@
 - Web Browser (Desktop)
 
 ### Test URLs
-- **Frontend:** https://practice-hub-32.preview.emergentagent.com
-- **Backend API:** https://practice-hub-32.preview.emergentagent.com/api
+- **Frontend:** https://reels-cricket-hub.preview.emergentagent.com
+- **Backend API:** https://reels-cricket-hub.preview.emergentagent.com/api
 
 ### Test Credentials
 - Create new account via registration

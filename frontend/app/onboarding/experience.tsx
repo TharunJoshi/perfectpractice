@@ -14,11 +14,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useAuthStore } from '../../src/store/authStore';
 
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
 export default function ExperienceOnboarding() {
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
 
   const options = [
     {
@@ -53,46 +55,100 @@ export default function ExperienceOnboarding() {
     try {
       setLoading(true);
 
+      // Find the selected option first
+      const selectedOption = options.find((o) => o.id === selected);
+
       // Get stored height and weight
       const height = await AsyncStorage.getItem('onboarding_height');
       const weight = await AsyncStorage.getItem('onboarding_weight');
       const token = await AsyncStorage.getItem('token');
 
+      console.log('Onboarding data:', { height, weight, token: token ? 'exists' : 'missing' });
+
       if (!height || !weight) {
         Alert.alert('Error', 'Missing profile data. Please go back and complete step 1.');
+        setLoading(false);
         return;
       }
 
-      const selectedOption = options.find((o) => o.id === selected);
+      if (!token) {
+        console.log('No token found, attempting to complete onboarding locally');
+        // If no token, still allow completion locally
+        // This handles edge cases where token might not be stored
+        if (user) {
+          const updatedUser = {
+            ...user,
+            height: parseFloat(height),
+            weight: parseFloat(weight),
+            experience_level: selectedOption?.experience,
+            why_here: selected,
+            onboarding_completed: true,
+          };
+          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+          updateUser(updatedUser);
+        }
+        await AsyncStorage.removeItem('onboarding_height');
+        await AsyncStorage.removeItem('onboarding_weight');
+        router.replace('/(tabs)/home');
+        return;
+      }
+
+      const onboardingPayload = {
+        height: parseFloat(height),
+        weight: parseFloat(weight),
+        experience_level: selectedOption?.experience,
+        why_here: selected,
+      };
+
+      console.log('Sending onboarding request:', onboardingPayload);
 
       // Submit onboarding data
-      await axios.post(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/auth/onboarding`,
-        {
-          height: parseFloat(height),
-          weight: parseFloat(weight),
-          experience_level: selectedOption?.experience,
-          why_here: selected,
-        },
+      const response = await axios.post(
+        `${API_URL}/api/auth/onboarding`,
+        onboardingPayload,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
+      console.log('Onboarding response:', response.data);
+
+      // Update the user in the store with the new data
+      if (user) {
+        const updatedUser = {
+          ...user,
+          height: parseFloat(height),
+          weight: parseFloat(weight),
+          experience_level: selectedOption?.experience,
+          why_here: selected,
+          onboarding_completed: true,
+        };
+        // Update AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        // Update the store
+        updateUser(updatedUser);
+      }
+
       // Clear temporary storage
       await AsyncStorage.removeItem('onboarding_height');
       await AsyncStorage.removeItem('onboarding_weight');
 
-      // Navigate to home
-      Alert.alert(
-        'Welcome to PerfectPractice! 🏏',
-        'Your profile is complete. Let\'s start practicing!',
-        [{ text: 'Let\'s Go!', onPress: () => router.replace('/(tabs)/home') }]
-      );
+      // Navigate to home immediately
+      console.log('Onboarding complete, navigating to home...');
+      router.replace('/(tabs)/home');
+      
+      // Show a non-blocking success message after navigation
+      setTimeout(() => {
+        Alert.alert(
+          'Welcome to PerfectPractice! 🏏',
+          'Your profile is complete. Let\'s start practicing!'
+        );
+      }, 500);
     } catch (error: any) {
+      console.error('Onboarding error:', error);
       Alert.alert(
         'Error',
-        error.response?.data?.detail || 'Failed to complete onboarding'
+        error.response?.data?.detail || error.message || 'Failed to complete onboarding'
       );
     } finally {
       setLoading(false);

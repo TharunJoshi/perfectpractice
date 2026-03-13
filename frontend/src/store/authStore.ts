@@ -27,6 +27,7 @@ interface AuthState {
   socialLogin: (provider: string, providerData: any) => Promise<void>;
   logout: () => Promise<void>;
   loadToken: () => Promise<void>;
+  updateUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -103,5 +104,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (error) {
       set({ isLoading: false });
     }
+  },
+
+  updateUser: (user: User) => {
+    set({ user });
   },
 }));

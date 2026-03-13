@@ -11,7 +11,7 @@ import time
 from typing import Dict, Any, Optional
 
 # Configuration
-BASE_URL = "https://perfect-drills.preview.emergentagent.com/api"
+BASE_URL = "https://practice-hub-32.preview.emergentagent.com/api"
 TIMEOUT = 30
 
 class PerfectPracticeAPITester:

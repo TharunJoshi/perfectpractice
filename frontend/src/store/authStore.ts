@@ -8,6 +8,12 @@ interface User {
   id: string;
   email: string;
   name: string;
+  profile_picture?: string;
+  onboarding_completed: boolean;
+  height?: number;
+  weight?: number;
+  experience_level?: string;
+  why_here?: string;
   created_at: string;
 }
 
@@ -18,6 +24,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
+  socialLogin: (provider: string, providerData: any) => Promise<void>;
   logout: () => Promise<void>;
   loadToken: () => Promise<void>;
 }
@@ -53,6 +60,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ token: access_token, user, isAuthenticated: true });
     } catch (error: any) {
       throw new Error(error.response?.data?.detail || 'Registration failed');
+    }
+  },
+
+  socialLogin: async (provider: string, providerData: any) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/social`, {
+        provider: provider,
+        provider_id: providerData.id,
+        email: providerData.email,
+        name: providerData.name,
+        profile_picture: providerData.photoURL || providerData.picture || null,
+      });
+      const { access_token, user } = response.data;
+      
+      await AsyncStorage.setItem('token', access_token);
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      
+      set({ token: access_token, user, isAuthenticated: true });
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Social login failed');
     }
   },
 

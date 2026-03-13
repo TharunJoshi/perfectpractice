@@ -5,17 +5,22 @@ import { useAuthStore } from '../src/store/authStore';
 
 export default function Index() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
 
   useEffect(() => {
     if (!isLoading) {
-      if (isAuthenticated) {
-        router.replace('/(tabs)/home');
+      if (isAuthenticated && user) {
+        // Check if onboarding is completed
+        if (!user.onboarding_completed) {
+          router.replace('/welcome');
+        } else {
+          router.replace('/(tabs)/home');
+        }
       } else {
         router.replace('/login');
       }
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, user]);
 
   return (
     <View style={styles.container}>

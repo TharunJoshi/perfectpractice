@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,67 +17,62 @@ import { useSessionStore } from '../../src/store/sessionStore';
 import { useRouter } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = (SCREEN_WIDTH - 48 - 12) / 2; // 24px padding each side, 12px gap
+
 export default function Home() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const { createSession, joinSession } = useSessionStore();
+  const { joinSession } = useSessionStore();
   
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   
+  // Practice type selected
+  const [practiceType, setPracticeType] = useState<'solo' | 'team'>('solo');
+  
   // Create session form
-  const [dayNumber, setDayNumber] = useState('1');
   const [duration, setDuration] = useState('60');
   const [focusArea, setFocusArea] = useState('batting');
   const [goal, setGoal] = useState('');
-  const [numPlayers, setNumPlayers] = useState(1);  // Default to solo
+  const [numPlayers, setNumPlayers] = useState(2);
   const [skillLevel, setSkillLevel] = useState('intermediate');
   
   // Join session form
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleCreateSession = async () => {
+  const handlePracticeSelect = (type: 'solo' | 'team') => {
+    setPracticeType(type);
+    if (type === 'solo') {
+      setNumPlayers(1);
+    } else {
+      setNumPlayers(2);
+    }
+    setShowConfigModal(true);
+  };
+
+  const handleProceedToCamera = () => {
     const durationNum = parseInt(duration);
     if (durationNum < 30) {
       Alert.alert('Error', 'Duration must be at least 30 minutes');
       return;
     }
-
-    try {
-      setLoading(true);
-      const session = await createSession({
-        day_number: parseInt(dayNumber),
+    
+    setShowConfigModal(false);
+    
+    // Navigate to camera setup with session params
+    router.push({
+      pathname: '/camera-setup',
+      params: {
+        practiceType,
+        numPlayers: practiceType === 'solo' ? 1 : numPlayers,
+        skillLevel,
+        focusArea,
         duration: durationNum,
-        focus_area: focusArea,
-        goal: goal.trim() || null,  // Optional - AI will generate if empty
-        num_players: numPlayers,
-        skill_level: skillLevel,
-      });
-      
-      setShowCreateModal(false);
-      
-      // Different messages for solo vs multi-player
-      if (session.is_solo) {
-        Alert.alert(
-          '🏏 Solo Practice Started!',
-          session.ai_practice_plan 
-            ? `AI has generated a personalized ${skillLevel} ${focusArea} plan for you!\n\nGoal: ${session.goal}`
-            : 'Your session has started. Begin with warm-up!',
-          [{ text: 'Start Practice', onPress: () => router.push(`/session/${session.id}`) }]
-        );
-      } else {
-        Alert.alert(
-          'Session Created!',
-          `Share this join code with your ${numPlayers - 1} partner(s): ${session.join_code}`,
-          [{ text: 'OK', onPress: () => router.push(`/session/${session.id}`) }]
-        );
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setLoading(false);
-    }
+        goal: goal.trim(),
+      },
+    });
   };
 
   const handleJoinSession = async () => {
@@ -89,9 +85,22 @@ export default function Home() {
       setLoading(true);
       const session = await joinSession(joinCode.trim());
       setShowJoinModal(false);
-      Alert.alert('Joined Successfully!', 'You have joined the session', [
-        { text: 'OK', onPress: () => router.push(`/session/${session.id}`) },
-      ]);
+      setJoinCode('');
+      
+      // Navigate to camera setup for joining session
+      router.push({
+        pathname: '/camera-setup',
+        params: {
+          practiceType: 'team',
+          numPlayers: session.num_players,
+          skillLevel: session.skill_level,
+          focusArea: session.focus_area,
+          duration: session.duration,
+          goal: session.goal || '',
+          sessionId: session.id,
+          isJoining: 'true',
+        },
+      });
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -101,10 +110,11 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.name}!</Text>
+            <Text style={styles.greeting}>Hello, {user?.name?.split(' ')[0]}!</Text>
             <Text style={styles.subGreeting}>Ready for perfect practice?</Text>
           </View>
           <View style={styles.iconContainer}>
@@ -112,79 +122,93 @@ export default function Home() {
           </View>
         </View>
 
-        <View style={styles.cardContainer}>
+        {/* Practice Cards - Side by Side */}
+        <View style={styles.practiceCardsRow}>
+          {/* Solo Practice Card */}
           <TouchableOpacity
-            style={[styles.card, styles.soloCard]}
-            onPress={() => {
-              setNumPlayers(1);
-              setShowCreateModal(true);
-            }}
+            style={[styles.practiceCard, styles.soloCard]}
+            onPress={() => handlePracticeSelect('solo')}
           >
-            <View style={styles.cardIcon}>
-              <Ionicons name="person" size={48} color="#10b981" />
+            <View style={[styles.cardIconCircle, styles.soloIconCircle]}>
+              <Ionicons name="person" size={32} color="#10b981" />
             </View>
-            <Text style={styles.cardTitle}>Solo Practice</Text>
-            <Text style={styles.cardDescription}>
-              Practice alone with AI-guided training
-            </Text>
+            <Text style={styles.cardTitle}>Solo</Text>
+            <Text style={styles.cardSubtitle}>Practice</Text>
+            <Text style={styles.cardDescription}>AI-guided training</Text>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>Starts Immediately</Text>
+              <Text style={styles.badgeText}>Instant Start</Text>
             </View>
           </TouchableOpacity>
 
+          {/* Team Practice Card */}
           <TouchableOpacity
-            style={styles.card}
-            onPress={() => {
-              setNumPlayers(2);
-              setShowCreateModal(true);
-            }}
+            style={[styles.practiceCard, styles.teamCard]}
+            onPress={() => handlePracticeSelect('team')}
           >
-            <View style={styles.cardIcon}>
-              <Ionicons name="people" size={48} color="#3b82f6" />
+            <View style={[styles.cardIconCircle, styles.teamIconCircle]}>
+              <Ionicons name="people" size={32} color="#3b82f6" />
             </View>
-            <Text style={styles.cardTitle}>Team Practice</Text>
-            <Text style={styles.cardDescription}>
-              Create session for 2-10 players
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => setShowJoinModal(true)}
-          >
-            <View style={styles.cardIcon}>
-              <Ionicons name="enter" size={48} color="#8b5cf6" />
-            </View>
-            <Text style={styles.cardTitle}>Join Session</Text>
-            <Text style={styles.cardDescription}>
-              Enter code to join existing session
-            </Text>
+            <Text style={styles.cardTitle}>Team</Text>
+            <Text style={styles.cardSubtitle}>Practice</Text>
+            <Text style={styles.cardDescription}>2-10 players</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Join Session Card - Full Width */}
+        <TouchableOpacity
+          style={styles.joinCard}
+          onPress={() => setShowJoinModal(true)}
+        >
+          <View style={styles.joinCardContent}>
+            <View style={[styles.cardIconCircle, styles.joinIconCircle]}>
+              <Ionicons name="enter" size={28} color="#8b5cf6" />
+            </View>
+            <View style={styles.joinTextContainer}>
+              <Text style={styles.joinTitle}>Join Session</Text>
+              <Text style={styles.joinDescription}>Enter code to join existing session</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#64748b" />
+        </TouchableOpacity>
+
+        {/* Features Section */}
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>✨ New Features</Text>
-          <View style={styles.infoCard}>
-            <Ionicons name="sparkles" size={24} color="#10b981" />
-            <Text style={styles.infoText}>AI generates personalized practice plans</Text>
-          </View>
-          <View style={styles.infoCard}>
-            <Ionicons name="play-circle" size={24} color="#10b981" />
-            <Text style={styles.infoText}>Instructional videos for every step</Text>
-          </View>
-          <View style={styles.infoCard}>
-            <Ionicons name="trophy" size={24} color="#10b981" />
-            <Text style={styles.infoText}>Skill level-based training paths</Text>
+          <Text style={styles.infoTitle}>✨ Features</Text>
+          <View style={styles.featuresGrid}>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIconContainer}>
+                <Ionicons name="sparkles" size={20} color="#10b981" />
+              </View>
+              <Text style={styles.featureText}>AI Practice Plans</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIconContainer}>
+                <Ionicons name="videocam" size={20} color="#3b82f6" />
+              </View>
+              <Text style={styles.featureText}>Video Analysis</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIconContainer}>
+                <Ionicons name="analytics" size={20} color="#8b5cf6" />
+              </View>
+              <Text style={styles.featureText}>Track Progress</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIconContainer}>
+                <Ionicons name="trophy" size={20} color="#f59e0b" />
+              </View>
+              <Text style={styles.featureText}>Skill Levels</Text>
+            </View>
           </View>
         </View>
       </ScrollView>
 
-      {/* Create Session Modal */}
+      {/* Configure Session Modal */}
       <Modal
-        visible={showCreateModal}
+        visible={showConfigModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
+        onRequestClose={() => setShowConfigModal(false)}
       >
         <View style={styles.modalOverlay}>
           <KeyboardAwareScrollView
@@ -193,18 +217,18 @@ export default function Home() {
           >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {numPlayers === 1 ? 'Solo Practice' : 'Create Session'}
+                {practiceType === 'solo' ? 'Solo Practice' : 'Team Practice'}
               </Text>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+              <TouchableOpacity onPress={() => setShowConfigModal(false)}>
                 <Ionicons name="close" size={28} color="#94a3b8" />
               </TouchableOpacity>
             </View>
 
-            {numPlayers > 1 && (
+            {practiceType === 'team' && (
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Number of Players</Text>
                 <View style={styles.playerSelector}>
-                  {[1, 2, 3, 4, 5].map((num) => (
+                  {[2, 3, 4, 5, 6].map((num) => (
                     <TouchableOpacity
                       key={num}
                       style={[
@@ -230,66 +254,26 @@ export default function Home() {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Skill Level</Text>
               <View style={styles.segmentControl}>
-                <TouchableOpacity
-                  style={[
-                    styles.segment,
-                    skillLevel === 'beginner' && styles.segmentActive,
-                  ]}
-                  onPress={() => setSkillLevel('beginner')}
-                >
-                  <Text
+                {['beginner', 'intermediate', 'advanced'].map((level) => (
+                  <TouchableOpacity
+                    key={level}
                     style={[
-                      styles.segmentText,
-                      skillLevel === 'beginner' && styles.segmentTextActive,
+                      styles.segment,
+                      skillLevel === level && styles.segmentActive,
                     ]}
+                    onPress={() => setSkillLevel(level)}
                   >
-                    Beginner
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.segment,
-                    skillLevel === 'intermediate' && styles.segmentActive,
-                  ]}
-                  onPress={() => setSkillLevel('intermediate')}
-                >
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      skillLevel === 'intermediate' && styles.segmentTextActive,
-                    ]}
-                  >
-                    Intermediate
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.segment,
-                    skillLevel === 'advanced' && styles.segmentActive,
-                  ]}
-                  onPress={() => setSkillLevel('advanced')}
-                >
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      skillLevel === 'advanced' && styles.segmentTextActive,
-                    ]}
-                  >
-                    Advanced
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        skillLevel === level && styles.segmentTextActive,
+                      ]}
+                    >
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Day Number</Text>
-              <TextInput
-                style={styles.input}
-                value={dayNumber}
-                onChangeText={setDayNumber}
-                keyboardType="number-pad"
-                placeholderTextColor="#64748b"
-              />
             </View>
 
             <View style={styles.formGroup}>
@@ -307,60 +291,31 @@ export default function Home() {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Focus Area</Text>
               <View style={styles.segmentControl}>
-                <TouchableOpacity
-                  style={[
-                    styles.segment,
-                    focusArea === 'batting' && styles.segmentActive,
-                  ]}
-                  onPress={() => setFocusArea('batting')}
-                >
-                  <Text
+                {['batting', 'bowling', 'fielding'].map((area) => (
+                  <TouchableOpacity
+                    key={area}
                     style={[
-                      styles.segmentText,
-                      focusArea === 'batting' && styles.segmentTextActive,
+                      styles.segment,
+                      focusArea === area && styles.segmentActive,
                     ]}
+                    onPress={() => setFocusArea(area)}
                   >
-                    Batting
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.segment,
-                    focusArea === 'bowling' && styles.segmentActive,
-                  ]}
-                  onPress={() => setFocusArea('bowling')}
-                >
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      focusArea === 'bowling' && styles.segmentTextActive,
-                    ]}
-                  >
-                    Bowling
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.segment,
-                    focusArea === 'fielding' && styles.segmentActive,
-                  ]}
-                  onPress={() => setFocusArea('fielding')}
-                >
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      focusArea === 'fielding' && styles.segmentTextActive,
-                    ]}
-                  >
-                    Fielding
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        focusArea === area && styles.segmentTextActive,
+                      ]}
+                    >
+                      {area.charAt(0).toUpperCase() + area.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>
-                Goal / Technique <Text style={styles.optional}>(Optional)</Text>
+                Goal <Text style={styles.optional}>(Optional)</Text>
               </Text>
               <TextInput
                 style={styles.input}
@@ -370,18 +325,16 @@ export default function Home() {
                 placeholderTextColor="#64748b"
               />
               <Text style={styles.hint}>
-                💡 Leave empty and AI will create a personalized {skillLevel} plan for you!
+                💡 AI will create a personalized {skillLevel} plan for you!
               </Text>
             </View>
 
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={handleCreateSession}
-              disabled={loading}
+              onPress={handleProceedToCamera}
             >
-              <Text style={styles.modalButtonText}>
-                {loading ? 'Creating...' : numPlayers === 1 ? 'Start Solo Practice' : 'Create Session'}
-              </Text>
+              <Text style={styles.modalButtonText}>Next: Check Camera Area</Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
             </TouchableOpacity>
           </KeyboardAwareScrollView>
         </View>
@@ -446,58 +399,82 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   greeting: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#fff',
   },
   subGreeting: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#94a3b8',
     marginTop: 4,
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardContainer: {
+  // Side by side cards
+  practiceCardsRow: {
+    flexDirection: 'row',
     paddingHorizontal: 24,
-    gap: 16,
+    gap: 12,
+    marginBottom: 16,
   },
-  card: {
+  practiceCard: {
+    width: CARD_WIDTH,
     backgroundColor: '#1e293b',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#334155',
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#334155',
   },
   soloCard: {
     borderColor: '#10b981',
-    borderWidth: 2,
   },
-  cardIcon: {
-    marginBottom: 16,
+  teamCard: {
+    borderColor: '#334155',
+  },
+  cardIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  soloIconCircle: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  teamIconCircle: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },
   cardTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 6,
   },
   cardDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#94a3b8',
     textAlign: 'center',
   },
   badge: {
-    backgroundColor: '#10b98120',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -505,33 +482,85 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#10b981',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
+  // Join card
+  joinCard: {
+    marginHorizontal: 24,
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 24,
+  },
+  joinCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  joinIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+  },
+  joinTextContainer: {
+    gap: 2,
+  },
+  joinTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  joinDescription: {
+    fontSize: 13,
+    color: '#94a3b8',
+  },
+  // Features section
   infoSection: {
-    padding: 24,
-    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
   infoTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 16,
   },
-  infoCard: {
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  featureItem: {
+    width: (SCREEN_WIDTH - 48 - 12) / 2,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1e293b',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    gap: 12,
+    padding: 14,
+    gap: 10,
   },
-  infoText: {
-    fontSize: 16,
+  featureIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featureText: {
+    fontSize: 13,
     color: '#e2e8f0',
+    fontWeight: '500',
     flex: 1,
   },
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -588,13 +617,13 @@ const styles = StyleSheet.create({
   },
   playerSelector: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   playerButton: {
     flex: 1,
     backgroundColor: '#0f172a',
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#334155',
@@ -604,7 +633,7 @@ const styles = StyleSheet.create({
     borderColor: '#10b981',
   },
   playerButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#94a3b8',
   },
@@ -635,11 +664,14 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   modalButton: {
+    flexDirection: 'row',
     backgroundColor: '#10b981',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
+    gap: 10,
   },
   modalButtonText: {
     color: '#fff',

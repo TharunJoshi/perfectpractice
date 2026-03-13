@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,46 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../src/store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, FontAwesome } from '@expo/vector-icons';
+import { Ionicons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-// Demo Mode Flag - Set to false when you have real OAuth credentials
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DEMO_MODE = true;
+
+// Animated sparkle component
+const Sparkle = ({ delay, style }: { delay: number; style: any }) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    const animate = () => {
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.2, duration: 300, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 0.5, duration: 500, useNativeDriver: true }),
+        ]),
+      ]).start(() => animate());
+    };
+    animate();
+  }, []);
+
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ scale }] }]}>
+      <Text style={{ fontSize: 20 }}>✦</Text>
+    </Animated.View>
+  );
+};
 
 export default function Login() {
   const router = useRouter();
@@ -28,14 +60,33 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
-  
-  // Demo mode states
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoProvider, setDemoProvider] = useState<string>('');
   const [demoName, setDemoName] = useState('');
   const [demoEmail, setDemoEmail] = useState('');
 
-  // Generate mock user data based on provider
+  // Animations
+  const titleGlow = useRef(new Animated.Value(0)).current;
+  const buttonPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Title glow animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(titleGlow, { toValue: 1, duration: 2000, useNativeDriver: false }),
+        Animated.timing(titleGlow, { toValue: 0, duration: 2000, useNativeDriver: false }),
+      ])
+    ).start();
+
+    // Button pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(buttonPulse, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
+        Animated.timing(buttonPulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
   const getMockUserData = (provider: string, name: string, userEmail: string) => {
     const timestamp = Date.now();
     return {
@@ -46,7 +97,6 @@ export default function Login() {
     };
   };
 
-  // Handle Demo Social Login
   const handleDemoSocialLogin = async () => {
     if (!demoName.trim()) {
       Alert.alert('Error', 'Please enter your name');
@@ -60,15 +110,9 @@ export default function Login() {
     try {
       setSocialLoading(demoProvider);
       setShowDemoModal(false);
-      
       const mockUser = getMockUserData(demoProvider, demoName, demoEmail);
-      
-      // Simulate network delay for realism
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
       await socialLogin(demoProvider, mockUser);
-      
-      // Check if onboarding is completed
       const user = useAuthStore.getState().user;
       if (user && !user.onboarding_completed) {
         router.replace('/welcome');
@@ -84,17 +128,10 @@ export default function Login() {
     }
   };
 
-  // Handle Social Button Press
   const handleSocialPress = (provider: string) => {
     if (DEMO_MODE) {
       setDemoProvider(provider);
       setShowDemoModal(true);
-    } else {
-      // Real OAuth flow would go here
-      Alert.alert(
-        'OAuth Not Configured',
-        `Please configure ${provider} OAuth credentials in the app settings.`
-      );
     }
   };
 
@@ -103,12 +140,9 @@ export default function Login() {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
     try {
       setLoading(true);
       await login(email, password);
-      
-      // Check if onboarding is completed
       const user = useAuthStore.getState().user;
       if (user && !user.onboarding_completed) {
         router.replace('/welcome');
@@ -122,235 +156,346 @@ export default function Login() {
     }
   };
 
-  const getProviderColor = (provider: string) => {
+  const getProviderGradient = (provider: string): string[] => {
     switch (provider) {
-      case 'google': return '#EA4335';
-      case 'facebook': return '#1877F2';
-      case 'twitter': return '#1DA1F2';
-      default: return '#10b981';
+      case 'google': return ['#EA4335', '#FF6B6B'];
+      case 'facebook': return ['#1877F2', '#4ECDC4'];
+      case 'twitter': return ['#1DA1F2', '#00f5ff'];
+      default: return ['#667eea', '#764ba2'];
     }
   };
 
-  const getProviderName = (provider: string) => {
-    switch (provider) {
-      case 'google': return 'Google';
-      case 'facebook': return 'Meta';
-      case 'twitter': return 'Twitter';
-      default: return provider;
-    }
-  };
+  const glowColor = titleGlow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#ff6b6b', '#00f5ff'],
+  });
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+    <LinearGradient
+      colors={['#0a0a1a', '#1a1a2e', '#16213e']}
+      style={styles.gradientContainer}
+    >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
         >
-          <View style={styles.content}>
-            <View style={styles.header}>
-              <Ionicons name="fitness" size={48} color="#10b981" />
-              <Text style={styles.title}>PerfectPractice</Text>
-              <Text style={styles.subtitle}>Your Cricket Coaching Journey</Text>
-            </View>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Sparkles */}
+            <Sparkle delay={0} style={[styles.sparkle, { top: 50, left: 30 }]} />
+            <Sparkle delay={500} style={[styles.sparkle, { top: 80, right: 40 }]} />
+            <Sparkle delay={1000} style={[styles.sparkle, { top: 150, left: 60 }]} />
+            <Sparkle delay={1500} style={[styles.sparkle, { top: 120, right: 70 }]} />
 
-            {/* Demo Mode Banner */}
-            {DEMO_MODE && (
-              <View style={styles.demoBanner}>
-                <Ionicons name="information-circle" size={16} color="#f59e0b" />
-                <Text style={styles.demoBannerText}>Demo Mode - Social login simulated</Text>
+            <View style={styles.content}>
+              {/* Anime-style Header */}
+              <View style={styles.header}>
+                <View style={styles.logoContainer}>
+                  <LinearGradient
+                    colors={['#ff6b6b', '#feca57', '#ff9ff3']}
+                    style={styles.logoGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialCommunityIcons name="cricket" size={40} color="#fff" />
+                  </LinearGradient>
+                  <View style={styles.logoGlow} />
+                </View>
+                
+                <Animated.Text style={[styles.title, { textShadowColor: glowColor }]}>
+                  PERFECT
+                </Animated.Text>
+                <Text style={styles.titleAccent}>PRACTICE</Text>
+                <Text style={styles.subtitle}>⚡ Level Up Your Cricket Game ⚡</Text>
               </View>
-            )}
 
-            {/* Social Login Buttons */}
-            <View style={styles.socialContainer}>
-              <Text style={styles.socialTitle}>Continue with</Text>
-              
-              <TouchableOpacity
-                style={[styles.socialButton, styles.googleButton]}
-                onPress={() => handleSocialPress('google')}
-                disabled={socialLoading !== null}
-              >
-                {socialLoading === 'google' ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <FontAwesome name="google" size={20} color="#fff" />
-                    <Text style={styles.socialButtonText}>Continue with Google</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {/* Demo Mode Banner */}
+              {DEMO_MODE && (
+                <LinearGradient
+                  colors={['rgba(255, 107, 107, 0.2)', 'rgba(78, 205, 196, 0.2)']}
+                  style={styles.demoBanner}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.demoBannerText}>★ DEMO MODE ★</Text>
+                </LinearGradient>
+              )}
 
-              <TouchableOpacity
-                style={[styles.socialButton, styles.facebookButton]}
-                onPress={() => handleSocialPress('facebook')}
-                disabled={socialLoading !== null}
-              >
-                {socialLoading === 'facebook' ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <FontAwesome name="facebook" size={20} color="#fff" />
-                    <Text style={styles.socialButtonText}>Continue with Meta</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {/* Social Login Buttons - Anime Style */}
+              <View style={styles.socialContainer}>
+                <Text style={styles.socialTitle}>— QUICK START —</Text>
+                
+                {/* Google */}
+                <TouchableOpacity
+                  style={styles.socialButtonWrapper}
+                  onPress={() => handleSocialPress('google')}
+                  disabled={socialLoading !== null}
+                >
+                  <LinearGradient
+                    colors={['#EA4335', '#FF6B6B']}
+                    style={styles.socialButton}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    {socialLoading === 'google' ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <FontAwesome name="google" size={22} color="#fff" />
+                        <Text style={styles.socialButtonText}>Continue with Google</Text>
+                        <View style={styles.arrowContainer}>
+                          <Ionicons name="chevron-forward" size={20} color="#fff" />
+                        </View>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.socialButton, styles.twitterButton]}
-                onPress={() => handleSocialPress('twitter')}
-                disabled={socialLoading !== null}
-              >
-                {socialLoading === 'twitter' ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <FontAwesome name="twitter" size={20} color="#fff" />
-                    <Text style={styles.socialButtonText}>Continue with Twitter</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+                {/* Facebook/Meta */}
+                <TouchableOpacity
+                  style={styles.socialButtonWrapper}
+                  onPress={() => handleSocialPress('facebook')}
+                  disabled={socialLoading !== null}
+                >
+                  <LinearGradient
+                    colors={['#1877F2', '#4ECDC4']}
+                    style={styles.socialButton}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    {socialLoading === 'facebook' ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <FontAwesome name="facebook" size={22} color="#fff" />
+                        <Text style={styles.socialButtonText}>Continue with Meta</Text>
+                        <View style={styles.arrowContainer}>
+                          <Ionicons name="chevron-forward" size={20} color="#fff" />
+                        </View>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
+                {/* Twitter */}
+                <TouchableOpacity
+                  style={styles.socialButtonWrapper}
+                  onPress={() => handleSocialPress('twitter')}
+                  disabled={socialLoading !== null}
+                >
+                  <LinearGradient
+                    colors={['#1DA1F2', '#00f5ff']}
+                    style={styles.socialButton}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    {socialLoading === 'twitter' ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <FontAwesome name="twitter" size={22} color="#fff" />
+                        <Text style={styles.socialButtonText}>Continue with Twitter</Text>
+                        <View style={styles.arrowContainer}>
+                          <Ionicons name="chevron-forward" size={20} color="#fff" />
+                        </View>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
 
-            {/* Email/Password Form */}
-            <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor="#64748b"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+              {/* Divider */}
+              <View style={styles.divider}>
+                <LinearGradient
+                  colors={['transparent', '#ff6b6b', 'transparent']}
+                  style={styles.dividerLine}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                />
+                <Text style={styles.dividerText}>OR</Text>
+                <LinearGradient
+                  colors={['transparent', '#00f5ff', 'transparent']}
+                  style={styles.dividerLine}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
                 />
               </View>
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#64748b"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
+              {/* Email/Password Form */}
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <LinearGradient
+                    colors={['rgba(255, 107, 107, 0.3)', 'rgba(78, 205, 196, 0.3)']}
+                    style={styles.inputGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Ionicons name="mail" size={20} color="#ff6b6b" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Email"
+                      placeholderTextColor="#666"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </LinearGradient>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <LinearGradient
+                    colors={['rgba(78, 205, 196, 0.3)', 'rgba(255, 107, 107, 0.3)']}
+                    style={styles.inputGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Ionicons name="lock-closed" size={20} color="#4ECDC4" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Password"
+                      placeholderTextColor="#666"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
+                    />
+                  </LinearGradient>
+                </View>
+
+                <Animated.View style={{ transform: [{ scale: buttonPulse }] }}>
+                  <TouchableOpacity
+                    style={styles.loginButtonWrapper}
+                    onPress={handleLogin}
+                    disabled={loading}
+                  >
+                    <LinearGradient
+                      colors={['#667eea', '#764ba2', '#f093fb']}
+                      style={styles.loginButton}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <>
+                          <Text style={styles.loginButtonText}>LOGIN</Text>
+                          <Ionicons name="flash" size={20} color="#FFE66D" />
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+
+                <TouchableOpacity onPress={() => router.push('/register')}>
+                  <Text style={styles.linkText}>
+                    New Player? <Text style={styles.linkTextBold}>Join Now!</Text>
+                  </Text>
+                </TouchableOpacity>
               </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleLogin}
-                disabled={loading}
+        {/* Demo Social Login Modal */}
+        <Modal
+          visible={showDemoModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDemoModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <LinearGradient
+              colors={['#1a1a2e', '#16213e']}
+              style={styles.modalContent}
+            >
+              <LinearGradient
+                colors={getProviderGradient(demoProvider)}
+                style={styles.modalHeader}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Login with Email</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => router.push('/register')}>
-                <Text style={styles.linkText}>
-                  Don't have an account? <Text style={styles.linkTextBold}>Register</Text>
+                <FontAwesome 
+                  name={demoProvider === 'facebook' ? 'facebook' : demoProvider as any} 
+                  size={32} 
+                  color="#fff" 
+                />
+                <Text style={styles.modalTitle}>
+                  {demoProvider.charAt(0).toUpperCase() + demoProvider.slice(1)} Login
                 </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      {/* Demo Social Login Modal */}
-      <Modal
-        visible={showDemoModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowDemoModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={[styles.modalHeader, { backgroundColor: getProviderColor(demoProvider) }]}>
-              <FontAwesome 
-                name={demoProvider === 'facebook' ? 'facebook' : demoProvider as any} 
-                size={32} 
-                color="#fff" 
-              />
-              <Text style={styles.modalTitle}>
-                Sign in with {getProviderName(demoProvider)}
-              </Text>
-            </View>
-            
-            <View style={styles.modalBody}>
-              <Text style={styles.modalSubtitle}>
-                Demo Mode: Enter your details to simulate {getProviderName(demoProvider)} login
-              </Text>
+              </LinearGradient>
               
-              <View style={styles.modalInputContainer}>
-                <Ionicons name="person-outline" size={20} color="#64748b" />
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Your Name"
-                  placeholderTextColor="#64748b"
-                  value={demoName}
-                  onChangeText={setDemoName}
-                  autoCapitalize="words"
-                />
+              <View style={styles.modalBody}>
+                <Text style={styles.modalSubtitle}>Enter your details</Text>
+                
+                <View style={styles.modalInputContainer}>
+                  <Ionicons name="person" size={20} color="#ff6b6b" />
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Your Name"
+                    placeholderTextColor="#666"
+                    value={demoName}
+                    onChangeText={setDemoName}
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                <View style={styles.modalInputContainer}>
+                  <Ionicons name="mail" size={20} color="#4ECDC4" />
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Your Email"
+                    placeholderTextColor="#666"
+                    value={demoEmail}
+                    onChangeText={setDemoEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.modalButtonWrapper}
+                  onPress={handleDemoSocialLogin}
+                >
+                  <LinearGradient
+                    colors={getProviderGradient(demoProvider)}
+                    style={styles.modalButton}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={styles.modalButtonText}>LET'S GO!</Text>
+                    <Ionicons name="rocket" size={20} color="#fff" />
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalCancelButton}
+                  onPress={() => {
+                    setShowDemoModal(false);
+                    setDemoName('');
+                    setDemoEmail('');
+                  }}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
               </View>
-
-              <View style={styles.modalInputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#64748b" />
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Your Email"
-                  placeholderTextColor="#64748b"
-                  value={demoEmail}
-                  onChangeText={setDemoEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: getProviderColor(demoProvider) }]}
-                onPress={handleDemoSocialLogin}
-              >
-                <Text style={styles.modalButtonText}>Continue</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => {
-                  setShowDemoModal(false);
-                  setDemoName('');
-                  setDemoEmail('');
-                }}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+            </LinearGradient>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   keyboardView: {
     flex: 1,
@@ -363,94 +508,148 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 32,
   },
+  sparkle: {
+    position: 'absolute',
+    color: '#FFE66D',
+    zIndex: 10,
+  },
   header: {
     alignItems: 'center',
     marginBottom: 24,
   },
+  logoContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  logoGradient: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFE66D',
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 107, 107, 0.3)',
+    top: -10,
+    left: -10,
+    zIndex: -1,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 42,
+    fontWeight: '900',
     color: '#fff',
-    marginTop: 16,
+    letterSpacing: 6,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
+  },
+  titleAccent: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#FFE66D',
+    letterSpacing: 8,
+    marginTop: -8,
+    textShadowColor: '#ff6b6b',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#94a3b8',
-    marginTop: 8,
+    fontSize: 14,
+    color: '#4ECDC4',
+    marginTop: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
   demoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderRadius: 8,
-    padding: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignSelf: 'center',
     marginBottom: 20,
-    gap: 8,
+    borderWidth: 1,
+    borderColor: '#ff6b6b',
   },
   demoBannerText: {
-    color: '#f59e0b',
-    fontSize: 13,
-    fontWeight: '500',
+    color: '#FFE66D',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 3,
   },
   socialContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   socialTitle: {
-    fontSize: 14,
-    color: '#94a3b8',
+    fontSize: 12,
+    color: '#a0a0b0',
     textAlign: 'center',
     marginBottom: 16,
+    fontWeight: '700',
+    letterSpacing: 4,
+  },
+  socialButtonWrapper: {
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 52,
-    borderRadius: 12,
-    marginBottom: 12,
-    gap: 12,
-  },
-  googleButton: {
-    backgroundColor: '#EA4335',
-  },
-  facebookButton: {
-    backgroundColor: '#1877F2',
-  },
-  twitterButton: {
-    backgroundColor: '#1DA1F2',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
   },
   socialButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginLeft: 16,
+    flex: 1,
+    letterSpacing: 1,
+  },
+  arrowContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: '#334155',
+    height: 2,
+    borderRadius: 1,
   },
   dividerText: {
-    color: '#64748b',
+    color: '#FFE66D',
     paddingHorizontal: 16,
     fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   form: {
     gap: 16,
   },
   inputContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  inputGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
     paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 107, 0.3)',
   },
   inputIcon: {
     marginRight: 12,
@@ -460,43 +659,52 @@ const styles = StyleSheet.create({
     height: 56,
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
   },
-  button: {
-    backgroundColor: '#10b981',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
+  loginButtonWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
     marginTop: 8,
   },
-  buttonText: {
+  loginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 16,
+    gap: 10,
+  },
+  loginButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 4,
   },
   linkText: {
-    color: '#94a3b8',
+    color: '#a0a0b0',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 16,
+    fontSize: 14,
   },
   linkTextBold: {
-    color: '#10b981',
-    fontWeight: '600',
+    color: '#FFE66D',
+    fontWeight: '800',
   },
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#1e293b',
-    borderRadius: 20,
+    borderRadius: 24,
     width: '100%',
     maxWidth: 400,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#ff6b6b',
   },
   modalHeader: {
     alignItems: 'center',
@@ -504,27 +712,28 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '900',
     color: '#fff',
+    letterSpacing: 2,
   },
   modalBody: {
     padding: 24,
   },
   modalSubtitle: {
-    color: '#94a3b8',
+    color: '#a0a0b0',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
-    lineHeight: 20,
+    fontWeight: '600',
   },
   modalInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 107, 0.3)',
     paddingHorizontal: 16,
     marginBottom: 12,
     gap: 12,
@@ -534,26 +743,34 @@ const styles = StyleSheet.create({
     height: 52,
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
   },
   modalButton: {
-    borderRadius: 12,
-    height: 52,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 10,
   },
   modalButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 3,
   },
   modalCancelButton: {
-    marginTop: 12,
+    marginTop: 16,
     padding: 12,
   },
   modalCancelText: {
-    color: '#64748b',
+    color: '#666',
     fontSize: 14,
     textAlign: 'center',
+    fontWeight: '600',
   },
 });
